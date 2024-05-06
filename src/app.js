@@ -73,10 +73,7 @@ app.use("/api", reservationRoutes);
 app.use("/api", mapsRoutes);
 
 createDates();
-// El Next es un callback que permite saltar la función, enviarla a otro
-// lugar o que continue con otra.
-// Se emplea normalmente para en enviar algo en común a varias funciones,
-// en este caso un error común
+
 app.use((err, req, res, next) => {
   // Verificar si el error es de Prisma y manejarlo
 
