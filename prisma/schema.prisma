@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// schema.prisma
+model types_parking {
+  id_type_parking Int    @id @default(autoincrement())
+  name            String @unique @db.VarChar(50)
+
+  parkings parkings[]
+}
+
+model cities {
+  id_city Int    @id @default(autoincrement())
+  name    String @unique @db.VarChar(50)
+
+  parkings parkings[]
+}
+
+model schedules {
+  id_schedule  Int @id @default(autoincrement())
+  initial_day  Int
+  final_day    Int
+  opening_time Int
+  closing_time Int
+
+  parkings parkings[]
+
+  @@unique([initial_day, final_day, opening_time, closing_time])
+}
+
+model parkings {
+  id_parking          Int      @id @default(autoincrement())
+  name                String   @unique @db.VarChar(50)
+  description         String?  @default("")
+  address             String   @unique @db.VarChar(50)
+  longitude           Float
+  latitude            Float
+  image_path          String   @db.VarChar(255)
+  has_loyalty_service Boolean? @default(false)
+  is_active           Boolean? @default(true)
+  id_city_fk          Int
+  id_type_parking_fk  Int
+  id_schedule_fk      Int
+  id_user_fk          Int
+
+  cities        cities        @relation(fields: [id_city_fk], references: [id_city], onDelete: Cascade, onUpdate: NoAction)
+  types_parking types_parking @relation(fields: [id_type_parking_fk], references: [id_type_parking], onDelete: Cascade, onUpdate: NoAction)
+  schedules     schedules     @relation(fields: [id_schedule_fk], references: [id_schedule], onDelete: Cascade, onUpdate: NoAction)
+  users         users         @relation(fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+
+  parking_controllers parking_controllers[]
+  reservations        reservations[]
+}
+
+model parking_controllers {
+  id_parking_controller Int @id @default(autoincrement())
+  capacity              Int
+  fee                   Int
+  id_vehicle_fk         Int
+  id_parking_fk         Int
+
+  vehicles vehicles @relation(fields: [id_vehicle_fk], references: [id_vehicle], onDelete: Cascade, onUpdate: NoAction)
+  parkings parkings @relation(fields: [id_parking_fk], references: [id_parking], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_vehicle_fk, id_parking_fk])
+}
+
+// MODIFICAR -----------------------------------------------------
+model vehicles {
+  id_vehicle Int    @id @default(autoincrement())
+  name       String @unique @db.VarChar(50)
+
+  parking_controllers parking_controllers[]
+  reservations        reservations[]
+}
+
+// Usuarios
+model roles {
+  id_role     Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(50)
+  description String? @default("") @db.Text
+
+  users users[]
+}
+
+model users {
+  id_user             Int      @id @default(autoincrement())
+  first_name          String   @db.VarChar(50)
+  last_name           String   @db.VarChar(50)
+  user_name           String   @unique @db.VarChar(255)
+  mail                String   @unique @db.VarChar(255)
+  password            String   @db.VarChar(255)
+  identification_card String   @unique @db.VarChar(50)
+  is_active           Boolean? @default(true)
+  id_role_fk          Int
+
+  roles roles @relation(fields: [id_role_fk], references: [id_role], onDelete: Cascade, onUpdate: NoAction)
+
+  records      records[]
+  reservations reservations[]
+
+  cards            cards?            @relation("CardUser")
+  loyalties        loyalties?        @relation("LoyaltyUser")
+  user_controllers user_controllers? @relation("UserControllerUser")
+  parkings         parkings[]
+}
+
+model records {
+  id_record  Int      @id @default(autoincrement())
+  action     String   @db.VarChar(50)
+  date       DateTime 
+  time       String   @db.VarChar(25)
+  ip_user    String   @db.VarChar(50)
+  id_user_fk Int
+
+  users users @relation(fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model loyalties {
+  id_loyalty     Int @id @default(autoincrement())
+  loyalty_points Int
+  id_user_fk     Int @unique
+
+  users users @relation("LoyaltyUser", fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model cards {
+  id_card         Int    @id @default(autoincrement())
+  number          String @db.VarChar(255)
+  cvc             String @db.VarChar(25)
+  expiration_date String @db.VarChar(25)
+  id_user_fk      Int    @unique
+
+  users users @relation("CardUser", fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model user_controllers {
+  id_user_controller Int      @id @default(autoincrement())
+  is_first_time      Boolean? @default(true)
+  is_account_blocked Boolean? @default(false)
+  verification_token String?  @db.VarChar(255)
+  login_attempts     Int
+  id_user_fk         Int      @unique
+
+  users users @relation("UserControllerUser", fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model reservations {
+  id_reservation             Int       @id @default(autoincrement())
+  reservation_date           DateTime
+  entry_reservation_date     DateTime
+  departure_reservation_date DateTime
+  check_in                   DateTime?
+  check_out                  DateTime?
+  vehicle_code               String    @db.VarChar(50)
+  state                      String    @db.VarChar(25)
+  id_vehicle_fk              Int
+  id_user_fk                 Int
+  id_parking_fk              Int
+
+  vehicles vehicles @relation(fields: [id_vehicle_fk], references: [id_vehicle], onDelete: Cascade, onUpdate: NoAction)
+  users    users    @relation(fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+  parkings parkings @relation(fields: [id_parking_fk], references: [id_parking], onDelete: Cascade, onUpdate: NoAction)
+
+  invoices invoices? @relation("InvoiceReservation")
+}
+
+model invoices {
+  id_invoice            Int    @id @default(autoincrement())
+  reserve_amount       Int
+  service_amount       Int
+  extra_time_amount    Int?   @default(0)
+  refund_amount        Int?   @default(0)
+  total_amount         Int
+  time                 Int
+  payment_token        String @default("") @db.VarChar(255)
+  id_payment_method_fk Int
+  id_reservation_fk    Int    @unique
+
+  payment_methods payment_methods @relation(fields: [id_payment_method_fk], references: [id_payment_method], onDelete: Cascade, onUpdate: NoAction)
+
+  reservations reservations @relation("InvoiceReservation", fields: [id_reservation_fk], references: [id_reservation], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model payment_methods {
+  id_payment_method Int    @id @default(autoincrement())
+  name              String @unique @db.VarChar(50)  
+
+  invoices invoices[]
+}
