@@ -102,7 +102,8 @@ export const getReservationService = async (element, type_search) => {
   }
 };
 
-export const createReservationService = async (reservation) => {
+// Recordar pasar el idUser desde el controlador con req.user.id_user
+export const createReservationService = async (reservation, idUser) => {
   try {
     const reserveAmount = 4000;
     const dolar = 4000;
@@ -113,6 +114,7 @@ export const createReservationService = async (reservation) => {
     currentDateWithoutTime.setHours(0, 0, 0, 0);
 
     const reservationDate = new Date(reservation.reservation_date);
+    reservation.reservation_date = new Date(reservation.reservation_date);
 
     if (currentDateWithoutTime > reservationDate)
       throw new Error("La fecha indicada es menor a la actual");
@@ -221,6 +223,24 @@ export const createReservationService = async (reservation) => {
     } else if (paymentMethod.name === "Otro Método de Pago") {
     }
 
+    const reservationData = {
+      reservation_date: reservation.reservation_date,
+      entry_reservation_date: reservation.entry_reservation_date,
+      departure_reservation_date: reservation.departure_reservation_date,
+      check_in: null,
+      check_out: null,
+      vehicle_code: reservation.vehicle_code,
+      state: "Activa",
+      id_vehicle_fk: reservation.id_vehicle_fk,
+      id_parking_fk: reservation.id_parking_fk,
+      id_user_fk: 1,
+    };
+
+    const result = await prisma.reservations.create({
+      data: reservationData,
+    });
+
+    // Pasar para el controlador
     const invoice = {
       reserve_amount: reserveAmount,
       service_amount: serviceAmountPesos,
@@ -231,12 +251,11 @@ export const createReservationService = async (reservation) => {
       id_reservation_fk: 1,
       id_payment_method_fk: paymentMethod.id_payment_method,
     };
-    await createInvoiceService(invoice);
+    console.log(invoice)
+    // await createInvoiceService(invoice);
 
-    // reservation.id_user_fk = req.user.id_user;
-    // reservation.state = "Activa";
     console.log("Holaaa");
-    return parking;
+    return invoice;
   } catch (error) {
     throw error;
   }
