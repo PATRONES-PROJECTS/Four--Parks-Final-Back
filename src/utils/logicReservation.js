@@ -54,9 +54,9 @@ export const checkDay = (reservationDate, schedule) => {
 };
 
 export const calculateHours = (date1, date2) => {
-  const diffEnMilisegundos = Math.abs(date2 - date1);
-  const diffEnHoras = Math.floor(diffEnMilisegundos / (1000 * 60 * 60));
-  return diffEnHoras;
+  const diffMili = Math.abs(date2 - date1);
+  const diffHor = Math.floor(diffMili / (1000 * 60 * 60));
+  return diffHor;
 };
 
 export const checkControllerReserve = (id, controllers) => {

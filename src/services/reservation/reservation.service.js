@@ -20,7 +20,7 @@ import { getVehicleByIdService } from "../parking/vehicle.service.js";
 import { createInvoiceService } from "./invoice.service.js";
 import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
 
-export const getReservationsService = async (q, query) => {
+export const getReservationsService = async (q, query, startDate, endDate) => {
   try {
     let whereClause = {};
     if (q) {
@@ -30,6 +30,26 @@ export const getReservationsService = async (q, query) => {
           { vehicle_code: { contains: q, mode: "insensitive" } },
           { users: { user_name: { contains: q, mode: "insensitive" } } },
         ],
+      };
+    }
+
+    // Convertir las fechas a formato ISO
+    const startDateISO = startDate ? new Date(startDate).toISOString() : null;
+    const endDateISO = endDate ? new Date(endDate).toISOString() : null;
+
+    // Agregar condición para el rango de fechas si están presentes
+    if (startDateISO && endDateISO) {
+      whereClause.entry_reservation_date = {
+        gte: startDateISO, // Mayor o igual que la fecha de inicio
+        lte: endDateISO, // Menor o igual que la fecha de fin
+      };
+    } else if (startDateISO) {
+      whereClause.entry_reservation_date = {
+        gte: startDateISO, // Mayor o igual que la fecha de inicio
+      };
+    } else if (endDateISO) {
+      whereClause.entry_reservation_date = {
+        lte: endDateISO, // Menor o igual que la fecha de fin
       };
     }
 
@@ -60,7 +80,14 @@ export const getReservationsService = async (q, query) => {
             name: true,
           },
         },
+        invoices: {
+          select: {
+            time: true,
+            total_amount: true,
+          },
+        },
       },
+      orderBy: [{ state: "asc" }],
     });
 
     return result;
@@ -91,6 +118,12 @@ export const getReservationService = async (element, type_search) => {
             name: true,
           },
         },
+        invoices: {
+          select: {
+            time: true,
+            total_amount: true,
+          },
+        },
       },
     });
 
@@ -110,8 +143,9 @@ export const createReservationService = async (reservation, idUser) => {
 
     let controller = null;
     const currentDateWithoutTime = new Date();
-    // currentDate.setHours(currentDate.getHours() - 5);
+    currentDateWithoutTime.setHours(currentDateWithoutTime.getHours() - 5);
     currentDateWithoutTime.setHours(0, 0, 0, 0);
+    console.log(currentDateWithoutTime)
 
     const reservationDate = new Date(reservation.reservation_date);
     reservation.reservation_date = new Date(reservation.reservation_date);
@@ -220,11 +254,14 @@ export const createReservationService = async (reservation, idUser) => {
 
       await stripe.paymentIntents.confirm(paymentToken);
     } else if (paymentMethod.name === "Puntos de Fidelidad") {
+      // Se verifica si los puntos de cliente son suficientes y tal vez con algo extra
+      // Se pasa un token de pago como "TokenPuntos"
     } else if (paymentMethod.name === "Otro Método de Pago") {
+      // Casi igual que con tarjeta personal
     }
 
     const reservationData = {
-      reservation_date: reservation.reservation_date,
+      reservation_date: currentDateWithoutTime,
       entry_reservation_date: reservation.entry_reservation_date,
       departure_reservation_date: reservation.departure_reservation_date,
       check_in: null,
@@ -233,12 +270,14 @@ export const createReservationService = async (reservation, idUser) => {
       state: "Activa",
       id_vehicle_fk: reservation.id_vehicle_fk,
       id_parking_fk: reservation.id_parking_fk,
-      id_user_fk: 1,
+      id_user_fk: idUser,
     };
 
     const result = await prisma.reservations.create({
       data: reservationData,
     });
+
+    console.log(hours);
 
     // Pasar para el controlador
     const invoice = {
@@ -246,15 +285,12 @@ export const createReservationService = async (reservation, idUser) => {
       service_amount: serviceAmountPesos,
       extra_time_amount: 0,
       refund_amount: 0,
-      time: hours / 60,
+      time: hours * 60,
       payment_token: paymentToken,
-      id_reservation_fk: 1,
+      id_reservation_fk: result.id_reservation,
       id_payment_method_fk: paymentMethod.id_payment_method,
     };
-    console.log(invoice)
-    // await createInvoiceService(invoice);
 
-    console.log("Holaaa");
     return invoice;
   } catch (error) {
     throw error;
