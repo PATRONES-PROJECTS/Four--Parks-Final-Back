@@ -17,6 +17,7 @@ import {
 import { getParkingService } from "../parking/parking.service.js";
 import { getScheduleByIdService } from "../parking/schedule.service.js";
 import { getVehicleByIdService } from "../parking/vehicle.service.js";
+import { createInvoiceService } from "./invoice.service.js";
 import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
 
 export const getReservationsService = async (q, query) => {
@@ -103,6 +104,9 @@ export const getReservationService = async (element, type_search) => {
 
 export const createReservationService = async (reservation) => {
   try {
+    const reserveAmount = 4000;
+    const dolar = 4000;
+
     let controller = null;
     const currentDateWithoutTime = new Date();
     // currentDate.setHours(currentDate.getHours() - 5);
@@ -190,15 +194,48 @@ export const createReservationService = async (reservation) => {
       reservation.departure_reservation_date
     );
 
-    const serviceAmount = hours * controller.fee * 60;
+    const serviceAmountPesos = hours * controller.fee * 60;
+    const serviceAmount = ((serviceAmountPesos + reserveAmount) / dolar) * 100;
     console.log(serviceAmount);
 
-    const paymentMethod = await getPaymentMethodByIdService(reservation.id_payment_method_fk)
-    console.log(paymentMethod)
+    const paymentMethod = await getPaymentMethodByIdService(
+      reservation.id_payment_method_fk
+    );
+    console.log(paymentMethod);
 
+    let paymentToken = "";
+
+    if (paymentMethod.name == "Tarjeta Personal") {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: serviceAmount,
+        currency: "usd",
+        payment_method_types: ["card"],
+        payment_method: "pm_card_visa",
+        confirmation_method: "automatic",
+      });
+
+      paymentToken = paymentIntent.id;
+
+      await stripe.paymentIntents.confirm(paymentToken);
+    } else if (paymentMethod.name === "Puntos de Fidelidad") {
+    } else if (paymentMethod.name === "Otro Método de Pago") {
+    }
+
+    const invoice = {
+      reserve_amount: reserveAmount,
+      service_amount: serviceAmountPesos,
+      extra_time_amount: 0,
+      refund_amount: 0,
+      time: hours / 60,
+      payment_token: paymentToken,
+      id_reservation_fk: 1,
+      id_payment_method_fk: paymentMethod.id_payment_method,
+    };
+    await createInvoiceService(invoice);
 
     // reservation.id_user_fk = req.user.id_user;
     // reservation.state = "Activa";
+    console.log("Holaaa");
     return parking;
   } catch (error) {
     throw error;

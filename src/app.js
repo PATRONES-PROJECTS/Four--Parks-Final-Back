@@ -72,7 +72,7 @@ app.use("/api", reservationRoutes);
 
 app.use("/api", mapsRoutes);
 
-createDates();
+// createDates();
 
 app.use((err, req, res, next) => {
   // Verificar si el error es de Prisma y manejarlo

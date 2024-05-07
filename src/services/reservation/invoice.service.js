@@ -1,48 +1,9 @@
-import { prisma, stripe } from "../../conn.js";
-import { restructureObject } from "../../utils/dataConversion.js";
+import { prisma } from "../../conn.js";
 
-export const getReservationsService = async (q, query) => {
+export const createInvoiceService = async (invoice) => {
   try {
-    let whereClause = {};
-    if (q) {
-      whereClause = {
-        OR: [
-          { state: { contains: q, mode: "insensitive" } },
-          { vehicle_code: { contains: q, mode: "insensitive" } },
-          { reservation_date: { equals: new Date(q) } },
-          { users: { user_name: { contains: q, mode: "insensitive" } } },
-        ],
-      };
-    }
-
-    if (query) {
-      let object_query = restructureObject(query);
-      if (whereClause.OR) {
-        whereClause.OR = [...whereClause.OR, ...object_query];
-      } else if (object_query.length > 0) {
-        whereClause.OR = [...object_query];
-      }
-    }
-
-    const result = await prisma.reservations.findMany({
-      where: whereClause,
-      include: {
-        users: {
-          select: {
-            user_name: true,
-          },
-        },
-        parkings: {
-          select: {
-            name: true,
-          },
-        },
-        vehicles: {
-          select: {
-            name: true,
-          },
-        },
-      },
+    const result = await prisma.invoices.create({
+      data: invoice,
     });
 
     return result;
@@ -51,49 +12,13 @@ export const getReservationsService = async (q, query) => {
   }
 };
 
-export const getReservationService = async (element, type_search) => {
+export const updateInvoiceService = async (id, invoice) => {
   try {
-    const result = await prisma.reservations.findUnique({
-      where: {
-        [type_search]: element,
-      },
-      include: {
-        users: {
-          select: {
-            user_name: true,
-          },
-        },
-        parkings: {
-          select: {
-            name: true,
-          },
-        },
-        vehicles: {
-          select: {
-            name: true,
-          },
-        },
-      },
+    const result = await prisma.invoices.update({
+      where: { id_user: parseInt(id) },
+      data: invoice,
     });
 
-    if (!result) throw new Error("No se encontró la reserva");
-
-    return result;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const createParkingService = async (parking) => {
-  try {
-    return result;
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const updateParkingService = async (id, parking) => {
-  try {
     return result;
   } catch (error) {
     throw error;
