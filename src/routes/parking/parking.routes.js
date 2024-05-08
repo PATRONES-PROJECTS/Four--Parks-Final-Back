@@ -19,7 +19,7 @@ import {
 
 const router = Router();
 
-router.get("/parkings", [authenticateToken], getParkings);
+router.get("/parkings", getParkings);
 router.get("/parkings/:id", [authenticateToken], getParkingById);
 router.post(
   "/parkings",
