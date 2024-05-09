@@ -1,5 +1,7 @@
 import { createInvoiceService } from "../../services/reservation/invoice.service.js";
 import {
+  cancelReservationService,
+  checkInReservationService,
   createReservationOnlyService,
   createReservationService,
   getReservationService,
@@ -55,6 +57,20 @@ export const createReservation = async (req, res, next) => {
   }
 };
 
+export const cancelReservation = async (req, res, next) => {
+  try {
+    // Extraer id de req.params
+    const { id } = req.params;
+
+    const reservation = await cancelReservationService(id);
+
+    res.json(reservation);
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
+
 export const success = async (req, res, next) => {
   try {
     // Obtener los datos de invoice y reservationData de la solicitud
@@ -93,6 +109,33 @@ export const cancel = async (req, res, next) => {
     console.log("El pago ha sido cancelado");
 
     res.status(200).send("El pago ha sido cancelado");
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
+
+export const checkInReservation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await checkInReservationService(id);
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
+
+export const checkOutReservation = async (req, res, next) => {
+  try {
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
+
+export const finalizeReservation = async (req, res, next) => {
+  try {
   } catch (error) {
     console.log(error.message);
     next(error);

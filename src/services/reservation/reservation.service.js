@@ -1,7 +1,6 @@
 import { prisma } from "../../conn.js";
 
 import { stripe } from "../../conn.js";
-import { success } from "../../controllers/reservation/reservation.controller.js";
 
 import { restructureObject } from "../../utils/dataConversion.js";
 import {
@@ -17,7 +16,11 @@ import {
   getLoyaltyByIdService,
   updateLoyaltyService,
 } from "../user/loyalty.service.js";
+import { updateInvoiceService } from "./invoice.service.js";
 import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
+
+const reserveAmount = 4000;
+const dolar = 4000;
 
 export const getReservationsService = async (q, query, startDate, endDate) => {
   try {
@@ -104,6 +107,7 @@ export const getReservationService = async (element, type_search) => {
       include: {
         users: {
           select: {
+            id_user: true,
             user_name: true,
           },
         },
@@ -117,12 +121,7 @@ export const getReservationService = async (element, type_search) => {
             name: true,
           },
         },
-        invoices: {
-          select: {
-            time: true,
-            total_amount: true,
-          },
-        },
+        invoices: true,
       },
     });
 
@@ -137,19 +136,16 @@ export const getReservationService = async (element, type_search) => {
 // Recordar pasar el idUser desde el controlador con req.user.id_user
 export const createReservationService = async (reservation, idUser) => {
   try {
-    const reserveAmount = 4000;
-    const dolar = 4000;
-
     let controller = null;
-    const currentDateWithoutTime = new Date();
-    currentDateWithoutTime.setHours(currentDateWithoutTime.getHours() - 5);
-    currentDateWithoutTime.setHours(0, 0, 0, 0);
-    console.log(currentDateWithoutTime);
+    const currentDate = new Date();
+    currentDate.setHours(currentDate.getHours() - 5);
+    // currentDate.setHours(0, 0, 0, 0);
 
     const reservationDate = new Date(reservation.reservation_date);
     reservation.reservation_date = new Date(reservation.reservation_date);
+    reservation.reservation_date.setHours(reservation.entry_reservation_date);
 
-    if (currentDateWithoutTime > reservationDate)
+    if (currentDate > reservation.reservation_date)
       throw new Error("La fecha indicada es menor a la actual");
 
     const parking = await getParkingService(
@@ -252,14 +248,14 @@ export const createReservationService = async (reservation, idUser) => {
       //   amount: 750,
       // });
 
-      paymentToken = paymentIntent.id;
-
       // await stripe.paymentIntents.confirm(paymentToken);
 
-      const refund = await stripe.refunds.create({
-        payment_intent: paymentToken,
-        amount: 200,
-      });
+      // const refund = await stripe.refunds.create({
+      //   payment_intent: paymentToken,
+      //   amount: 200,
+      // });
+
+      paymentToken = paymentIntent.id;
     } else if (paymentMethod.name === "Puntos de Fidelidad") {
       const serviceAmount = serviceAmountPesos + reserveAmount;
 
@@ -269,7 +265,7 @@ export const createReservationService = async (reservation, idUser) => {
         throw new Error("No tiene la cantidad de puntos suficientes");
 
       const pointsPayments =
-        points.id_loyalty - Math.round(serviceAmount / 4000);
+        points.loyalty_points - Math.round(serviceAmount / 4000);
 
       await updateLoyaltyService(points.id_loyalty, pointsPayments);
 
@@ -279,7 +275,7 @@ export const createReservationService = async (reservation, idUser) => {
         ((serviceAmountPesos + reserveAmount) / dolar) * 100;
 
       const reservationData = {
-        reservation_date: currentDateWithoutTime,
+        reservation_date: currentDate,
         entry_reservation_date: reservation.entry_reservation_date,
         departure_reservation_date: reservation.departure_reservation_date,
         check_in: null,
@@ -334,7 +330,7 @@ export const createReservationService = async (reservation, idUser) => {
     }
 
     const reservationData = {
-      reservation_date: currentDateWithoutTime,
+      reservation_date: currentDate,
       entry_reservation_date: reservation.entry_reservation_date,
       departure_reservation_date: reservation.departure_reservation_date,
       check_in: null,
@@ -407,9 +403,162 @@ export const createReservationOnlyService = async (reservation) => {
   }
 };
 
-export const updateReservationService = async (id, parking) => {
+export const updateReservationService = async (id, reservation) => {
   try {
+    const result = await prisma.reservations.update({
+      where: { id_reservation: parseInt(id) },
+      data: reservation,
+    });
+
     return result;
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const cancelReservationService = async (id) => {
+  try {
+    const reservation = await getReservationService(
+      parseInt(id),
+      "id_reservation"
+    );
+
+    if (reservation.state !== "Activa")
+      throw new Error("La reserva no esta Activa");
+
+    if (reservation.check_in !== null)
+      throw new Error("La reserva esta en proceso, no se puede cancelar");
+
+    let invoice = null;
+    let refundAmount = 0;
+    let totalAmount = 0;
+
+    const currentDate = new Date();
+    currentDate.setHours(currentDate.getHours() - 5);
+    const reservationEntryDate = new Date(reservation.entry_reservation_date);
+    const differenceInMilliseconds = reservationEntryDate - currentDate;
+    const differenceInMinutes = differenceInMilliseconds / (1000 * 60);
+
+    const paymentMethod = await getPaymentMethodByIdService(
+      reservation.invoices.id_payment_method_fk
+    );
+    // Verificación del tiempo
+    if (differenceInMinutes > 30) {
+      refundAmount = reservation.invoices.total_amount;
+    } else if (differenceInMinutes > 0 && differenceInMinutes <= 30) {
+      refundAmount = reservation.invoices.service_amount;
+      totalAmount = reservation.invoices.total_amount - refundAmount;
+    } else {
+      totalAmount = reservation.invoices.total_amount;
+    }
+
+    // Verificación del medio de pago
+    if (paymentMethod.name === "Tarjeta Personal" && refundAmount !== 0) {
+      const totalAmountDolar = (totalAmount / dolar) * 100;
+
+      if (totalAmount !== 0) {
+        await stripe.paymentIntents.update(reservation.invoices.payment_token, {
+          amount: totalAmountDolar,
+        });
+
+        await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
+      } else {
+        await stripe.paymentIntents.cancel(reservation.invoices.payment_token);
+      }
+    } else if (
+      paymentMethod.name === "Otro Método de Pago" &&
+      refundAmount !== 0
+    ) {
+      const refundAmountDolar = (refundAmount / dolar) * 100;
+
+      await stripe.refunds.create({
+        payment_intent: reservation.invoices.payment_token,
+        amount: refundAmountDolar,
+      });
+    } else if (
+      paymentMethod.name === "Puntos de Fidelidad" &&
+      refundAmount !== 0
+    ) {
+      const refundAmountPoints = Math.round(refundAmount / 4000);
+
+      const loyalty = await getLoyaltyByIdService(
+        reservation.users.id_user,
+        "id_user_fk"
+      );
+
+      const loyaltyPoints = loyalty.loyalty_points + refundAmountPoints;
+
+      await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
+    }
+
+    const reservationData = {
+      state: "Cancelado",
+    };
+    await updateReservationService(reservation.id_reservation, reservationData);
+
+    const invoiceData = {
+      refund_amount: refundAmount,
+      total_amount: totalAmount,
+    };
+    invoice = await updateInvoiceService(
+      reservation.invoices.id_invoice,
+      invoiceData
+    );
+
+    return invoice;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const checkInReservationService = async (id) => {
+  try {
+    const reservation = await getReservationService(
+      parseInt(id),
+      "id_reservation"
+    );
+
+    if(reservation.status !== "Activa"){
+      throw new Error("La reserva no esta activa");
+    }
+
+    const currentDate = new Date();
+    currentDate.setHours(currentDate.getHours() - 5);
+    reservation.entry_reservation_date = new Date(
+      reservation.entry_reservation_date
+    );
+    reservation.departure_reservation_date = new Date(
+      reservation.departure_reservation_date
+    );
+
+    if (
+      currentDate >= reservation.entry_reservation_date &&
+      currentDate <= reservation.departure_reservation_date
+    ) {
+      const dateReservation = {
+        check_in: currentDate,
+      };
+      const reservation = await updateReservationService(
+        parseInt(id),
+        dateReservation
+      );
+
+      return reservation
+    } else {
+      throw new Error("No esta dentro del rango de la reserva");
+    }
+
+    // console.log(currentDate);
+    // console.log(reservation.entry_reservation_date);
+    // console.log(reservation.departure_reservation_date);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const checkOutReservationService = async (id) => {
+  try {
   } catch (error) {
     throw error;
   }

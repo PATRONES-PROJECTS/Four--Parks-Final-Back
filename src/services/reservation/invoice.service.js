@@ -17,7 +17,7 @@ export const createInvoiceService = async (invoice) => {
 export const updateInvoiceService = async (id, invoice) => {
   try {
     const result = await prisma.invoices.update({
-      where: { id_user: parseInt(id) },
+      where: { id_invoice: parseInt(id) },
       data: invoice,
     });
 
