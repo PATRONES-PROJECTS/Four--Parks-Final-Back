@@ -2,6 +2,8 @@ import { prisma } from "../../conn.js";
 
 export const createInvoiceService = async (invoice) => {
   try {
+    invoice.total_amount = invoice.reserve_amount + invoice.service_amount;
+
     const result = await prisma.invoices.create({
       data: invoice,
     });

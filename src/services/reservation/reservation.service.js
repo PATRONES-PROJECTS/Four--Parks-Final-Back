@@ -1,12 +1,9 @@
 import { prisma } from "../../conn.js";
 
 import { stripe } from "../../conn.js";
+import { success } from "../../controllers/reservation/reservation.controller.js";
 
-import { getParkingById } from "../../controllers/parking/parking.controller.js";
-import {
-  convertReservationData,
-  restructureObject,
-} from "../../utils/dataConversion.js";
+import { restructureObject } from "../../utils/dataConversion.js";
 import {
   calculateHours,
   checkControllerReserve,
@@ -16,8 +13,10 @@ import {
 } from "../../utils/logicReservation.js";
 import { getParkingService } from "../parking/parking.service.js";
 import { getScheduleByIdService } from "../parking/schedule.service.js";
-import { getVehicleByIdService } from "../parking/vehicle.service.js";
-import { createInvoiceService } from "./invoice.service.js";
+import {
+  getLoyaltyByIdService,
+  updateLoyaltyService,
+} from "../user/loyalty.service.js";
 import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
 
 export const getReservationsService = async (q, query, startDate, endDate) => {
@@ -145,7 +144,7 @@ export const createReservationService = async (reservation, idUser) => {
     const currentDateWithoutTime = new Date();
     currentDateWithoutTime.setHours(currentDateWithoutTime.getHours() - 5);
     currentDateWithoutTime.setHours(0, 0, 0, 0);
-    console.log(currentDateWithoutTime)
+    console.log(currentDateWithoutTime);
 
     const reservationDate = new Date(reservation.reservation_date);
     reservation.reservation_date = new Date(reservation.reservation_date);
@@ -158,8 +157,8 @@ export const createReservationService = async (reservation, idUser) => {
       "id_parking"
     );
 
-    // const vehicle = await getVehicleByIdService(reservation.id_vehicle_fk)
-    // console.log(vehicle)
+    if (parking.is_active === false)
+      throw new Error("El parqueadero esta desactivado");
 
     const schedule = await getScheduleByIdService(parking.id_schedule_fk);
 
@@ -174,10 +173,8 @@ export const createReservationService = async (reservation, idUser) => {
     if (controller.fee <= 0)
       throw new Error("No hay servicio para ese vehículo");
 
-    // Verificar si el servicio es 24 horas
     const isTwentyFour = isTwentyFourService(schedule);
 
-    // Si no es 24 horas, mirar si las horas son correctas y el día
     if (!isTwentyFour) {
       const isAvailabilityDay = checkDay(reservationDate, schedule);
 
@@ -231,8 +228,6 @@ export const createReservationService = async (reservation, idUser) => {
     );
 
     const serviceAmountPesos = hours * controller.fee * 60;
-    const serviceAmount = ((serviceAmountPesos + reserveAmount) / dolar) * 100;
-    console.log(serviceAmount);
 
     const paymentMethod = await getPaymentMethodByIdService(
       reservation.id_payment_method_fk
@@ -242,6 +237,9 @@ export const createReservationService = async (reservation, idUser) => {
     let paymentToken = "";
 
     if (paymentMethod.name == "Tarjeta Personal") {
+      const serviceAmount =
+        ((serviceAmountPesos + reserveAmount) / dolar) * 100;
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: serviceAmount,
         currency: "usd",
@@ -250,14 +248,89 @@ export const createReservationService = async (reservation, idUser) => {
         confirmation_method: "automatic",
       });
 
+      //  await stripe.paymentIntents.update(paymentIntent.id, {
+      //   amount: 750,
+      // });
+
       paymentToken = paymentIntent.id;
 
-      await stripe.paymentIntents.confirm(paymentToken);
+      // await stripe.paymentIntents.confirm(paymentToken);
+
+      const refund = await stripe.refunds.create({
+        payment_intent: paymentToken,
+        amount: 200,
+      });
     } else if (paymentMethod.name === "Puntos de Fidelidad") {
-      // Se verifica si los puntos de cliente son suficientes y tal vez con algo extra
-      // Se pasa un token de pago como "TokenPuntos"
+      const serviceAmount = serviceAmountPesos + reserveAmount;
+
+      const points = await getLoyaltyByIdService(idUser, "id_user_fk");
+
+      if (points.loyalty_points * 4000 < serviceAmount)
+        throw new Error("No tiene la cantidad de puntos suficientes");
+
+      const pointsPayments =
+        points.id_loyalty - Math.round(serviceAmount / 4000);
+
+      await updateLoyaltyService(points.id_loyalty, pointsPayments);
+
+      paymentToken = "Pago con Puntos";
     } else if (paymentMethod.name === "Otro Método de Pago") {
-      // Casi igual que con tarjeta personal
+      const serviceAmount =
+        ((serviceAmountPesos + reserveAmount) / dolar) * 100;
+
+      const reservationData = {
+        reservation_date: currentDateWithoutTime,
+        entry_reservation_date: reservation.entry_reservation_date,
+        departure_reservation_date: reservation.departure_reservation_date,
+        check_in: null,
+        check_out: null,
+        vehicle_code: reservation.vehicle_code,
+        state: "Activa",
+        id_vehicle_fk: reservation.id_vehicle_fk,
+        id_parking_fk: reservation.id_parking_fk,
+        id_user_fk: idUser,
+      };
+
+      const invoice = {
+        reserve_amount: reserveAmount,
+        service_amount: serviceAmountPesos,
+        extra_time_amount: 0,
+        refund_amount: 0,
+        time: hours * 60,
+        payment_token: paymentToken,
+        id_reservation_fk: null,
+        id_payment_method_fk: paymentMethod.id_payment_method,
+      };
+
+      const jsonInvoice = JSON.stringify(invoice);
+      const jsonReservationData = JSON.stringify(reservationData);
+
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            price_data: {
+              product_data: {
+                name: "Reversa",
+                description: "Reserva de Four-Parks Colombia",
+              },
+              currency: "usd",
+              unit_amount: serviceAmount,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `http://localhost:3000/api/success?invoice=${encodeURIComponent(
+          jsonInvoice
+        )}&reservationData=${encodeURIComponent(
+          jsonReservationData
+        )}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: "http://localhost:3000/api/cancel",
+      });
+
+      invoice.other_payment_method = true;
+      invoice.url = session.url;
+      return invoice;
     }
 
     const reservationData = {
@@ -277,9 +350,6 @@ export const createReservationService = async (reservation, idUser) => {
       data: reservationData,
     });
 
-    console.log(hours);
-
-    // Pasar para el controlador
     const invoice = {
       reserve_amount: reserveAmount,
       service_amount: serviceAmountPesos,
@@ -320,6 +390,18 @@ export const countReservationService = async (
     });
 
     return count;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const createReservationOnlyService = async (reservation) => {
+  try {
+    const result = await prisma.reservations.create({
+      data: reservation,
+    });
+
+    return result;
   } catch (error) {
     throw error;
   }

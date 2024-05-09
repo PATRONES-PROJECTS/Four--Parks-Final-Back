@@ -1,9 +1,12 @@
 import { createInvoiceService } from "../../services/reservation/invoice.service.js";
 import {
+  createReservationOnlyService,
   createReservationService,
   getReservationService,
   getReservationsService,
 } from "../../services/reservation/reservation.service.js";
+
+import { stripe } from "../../conn.js";
 
 export const getReservations = async (req, res, next) => {
   try {
@@ -39,9 +42,57 @@ export const createReservation = async (req, res, next) => {
 
     const reservation = await createReservationService(req.body, id);
 
-    const invoice = await createInvoiceService(reservation);
+    if (reservation.other_payment_method) {
+      res.json(reservation);
+    } else {
+      const invoice = await createInvoiceService(reservation);
 
-    res.json(invoice);
+      res.json(invoice);
+    }
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
+
+export const success = async (req, res, next) => {
+  try {
+    // Obtener los datos de invoice y reservationData de la solicitud
+    const invoiceJson = req.query.invoice;
+    const reservationDataJson = req.query.reservationData;
+
+    const session = await stripe.checkout.sessions.retrieve(
+      req.query.session_id
+    );
+
+    const paymentToken = session.payment_intent;
+
+    const invoiceData = JSON.parse(decodeURIComponent(invoiceJson));
+    const reservationData = JSON.parse(decodeURIComponent(reservationDataJson));
+
+    const reservation = await createReservationOnlyService(reservationData);
+
+    invoiceData.payment_token = paymentToken;
+    invoiceData.id_reservation_fk = reservation.id_reservation;
+
+    await createInvoiceService(invoiceData);
+
+    console.log("Datos del id:", paymentToken);
+
+    // res.redirect('/pago-completado');
+    res.status(200).send("Pago completado exitosamente");
+  } catch (error) {
+    console.log(error.message);
+    // Pasar el error al siguiente middleware para el manejo de errores
+    next(error);
+  }
+};
+
+export const cancel = async (req, res, next) => {
+  try {
+    console.log("El pago ha sido cancelado");
+
+    res.status(200).send("El pago ha sido cancelado");
   } catch (error) {
     console.log(error.message);
     next(error);
