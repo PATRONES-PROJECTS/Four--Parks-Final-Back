@@ -23,7 +23,8 @@ export const getParkings = async (req, res, next) => {
   try {
     let q = req.query.q;
     let query = req.query;
-    const result = await getParkingsService(q, query);
+    let isActive = req.query.isActive;
+    const result = await getParkingsService(q, query, isActive);
 
     res.json(result);
   } catch (error) {
@@ -75,7 +76,7 @@ export const createParking = async (req, res, next) => {
       has_loyalty_service: elements.has_loyalty_service || false,
       is_active: elements.is_active || true,
       id_city_fk: elements.id_city_fk,
-      id_user_fk: elements.id_user_fk,
+      id_user_fk: elements.id_user_fk || null,
       id_schedule_fk: elements.id_schedule_fk,
       id_type_parking_fk: elements.id_type_parking_fk,
     };
@@ -124,7 +125,7 @@ export const updateParking = async (req, res, next) => {
       id_type_parking_fk: req.body.id_type_parking_fk,
       id_schedule_fk: req.body.id_schedule_fk,
       id_city_fk: req.body.id_city_fk,
-      id_user_fk: req.body.id_user_fk,
+      id_user_fk: req.body.id_user_fk || null,
     };
     await updateParkingService(parseInt(id), parking);
 
@@ -182,7 +183,7 @@ export const updateParkingWithoutImage = async (req, res, next) => {
       id_type_parking_fk: req.body.id_type_parking_fk,
       id_schedule_fk: req.body.id_schedule_fk,
       id_city_fk: req.body.id_city_fk,
-      id_user_fk: req.body.id_user_fk,
+      id_user_fk: req.body.id_user_fk || null,
     };
     await updateParkingService(parseInt(id), parking);
 

@@ -2,6 +2,7 @@ import { createInvoiceService } from "../../services/reservation/invoice.service
 import {
   cancelReservationService,
   checkInReservationService,
+  checkOutReservationService,
   createReservationOnlyService,
   createReservationService,
   getReservationService,
@@ -12,9 +13,16 @@ import { stripe } from "../../conn.js";
 
 export const getReservations = async (req, res, next) => {
   try {
+    const user = req.user;
     let query = req.query;
     const { q, startDate, endDate } = req.query;
-    const result = await getReservationsService(q, query, startDate, endDate);
+    const result = await getReservationsService(
+      user,
+      q,
+      query,
+      startDate,
+      endDate
+    );
 
     res.json(result);
   } catch (error) {
@@ -119,7 +127,9 @@ export const checkInReservation = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    await checkInReservationService(id);
+    const result = await checkInReservationService(id);
+
+    res.json(result);
   } catch (error) {
     console.log(error.message);
     next(error);
@@ -128,14 +138,10 @@ export const checkInReservation = async (req, res, next) => {
 
 export const checkOutReservation = async (req, res, next) => {
   try {
-  } catch (error) {
-    console.log(error.message);
-    next(error);
-  }
-};
+    const { id } = req.params;
 
-export const finalizeReservation = async (req, res, next) => {
-  try {
+    const result = await checkOutReservationService(id);
+    res.json(result);
   } catch (error) {
     console.log(error.message);
     next(error);

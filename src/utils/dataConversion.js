@@ -21,7 +21,9 @@ export const convertParkingData = (parking) => {
         ? parseInt(parking.id_type_parking_fk)
         : parking.id_type_parking_fk,
     id_user_fk:
-      typeof parking.id_user_fk === "string"
+      typeof parking.id_user_fk === "string" && parking.id_user_fk === "null"
+        ? null
+        : typeof parking.id_user_fk === "string"
         ? parseInt(parking.id_user_fk)
         : parking.id_user_fk,
     id_schedule_fk:

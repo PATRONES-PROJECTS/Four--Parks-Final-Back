@@ -18,6 +18,7 @@ import vehicleRoutes from "./routes/parking/vehicle.routes.js";
 
 import paymentMethodRoutes from "./routes/reservation/paymentMethod.routes.js";
 import reservationRoutes from "./routes/reservation/reservation.routes.js";
+import invoicesRoutes from "./routes/reservation/invoice.routes.js";
 
 import mapsRoutes from "./utils/googleMaps.js";
 
@@ -67,8 +68,9 @@ app.use("/api", scheduleRoutes);
 app.use("/api", typeParkingRoutes);
 app.use("/api", vehicleRoutes);
 
-app.use("/api", paymentMethodRoutes);+
+app.use("/api", paymentMethodRoutes);
 app.use("/api", reservationRoutes);
+app.use("/api", invoicesRoutes);
 
 app.use("/api", mapsRoutes);
 
@@ -87,11 +89,12 @@ app.use((err, req, res, next) => {
       address: "La dirección ya ha sido registrada.",
       identification_card: "La cédula ya ha sido registrada.",
       name: "El nombre ya ha sido registrado.",
+      id_user_fk: "El administrador ya tiene asignado un parqueadero"
       // Agrega más campos y mensajes de error según sea necesario
     };
 
     // Generar el mensaje de error en español utilizando el mapa de mensajes
-    const errorMessage = errorMessageMap[field] || "Error en el campo.";
+    const errorMessage = errorMessageMap[field] || "Error en uno de los campos.";
 
     return res.status(404).json({ message: errorMessage });
   }

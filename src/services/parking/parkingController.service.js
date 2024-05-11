@@ -40,16 +40,16 @@ export const updateParkingControllerService = async (
   }
 };
 
-// export const getParkingControllerService = async (idParking, token) => {
-//   try {
-//     const result = await prisma.user_controllers.findUnique({
-//       where: { id_user_fk: idUser, verification_token: token },
-//     });
+export const getParkingControllerService = async (idParking, idVehicle) => {
+  try {
+    const result = await prisma.parking_controllers.findFirst({
+      where: { id_parking_fk: idParking, id_vehicle_fk: idVehicle},
+    });
 
-//     if (!result) throw new Error("El token no es valido");
+    if (!result) throw new Error("No se ha encontrado el controlador del parqueadero");
 
-//     return result;
-//   } catch (error) {
-//     throw error;
-//   }
-// };
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};

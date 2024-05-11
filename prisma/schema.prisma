@@ -53,12 +53,12 @@ model parkings {
   id_city_fk          Int
   id_type_parking_fk  Int
   id_schedule_fk      Int
-  id_user_fk          Int
+  id_user_fk          Int?     @unique
 
   cities        cities        @relation(fields: [id_city_fk], references: [id_city], onDelete: Cascade, onUpdate: NoAction)
   types_parking types_parking @relation(fields: [id_type_parking_fk], references: [id_type_parking], onDelete: Cascade, onUpdate: NoAction)
   schedules     schedules     @relation(fields: [id_schedule_fk], references: [id_schedule], onDelete: Cascade, onUpdate: NoAction)
-  users         users         @relation(fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
+  users         users?        @relation("ParkingUser", fields: [id_user_fk], references: [id_user], onDelete: Cascade, onUpdate: NoAction)
 
   parking_controllers parking_controllers[]
   reservations        reservations[]
@@ -114,13 +114,14 @@ model users {
   cards            cards?            @relation("CardUser")
   loyalties        loyalties?        @relation("LoyaltyUser")
   user_controllers user_controllers? @relation("UserControllerUser")
-  parkings         parkings[]
+  parkings         parkings?         @relation("ParkingUser")
+  // parkings         parkings[]
 }
 
 model records {
   id_record  Int      @id @default(autoincrement())
   action     String   @db.VarChar(50)
-  date       DateTime 
+  date       DateTime
   time       String   @db.VarChar(25)
   ip_user    String   @db.VarChar(50)
   id_user_fk Int
@@ -178,7 +179,7 @@ model reservations {
 }
 
 model invoices {
-  id_invoice            Int    @id @default(autoincrement())
+  id_invoice           Int    @id @default(autoincrement())
   reserve_amount       Int
   service_amount       Int
   extra_time_amount    Int?   @default(0)
@@ -196,7 +197,7 @@ model invoices {
 
 model payment_methods {
   id_payment_method Int    @id @default(autoincrement())
-  name              String @unique @db.VarChar(50)  
+  name              String @unique @db.VarChar(50)
 
   invoices invoices[]
 }

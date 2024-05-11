@@ -2,11 +2,12 @@ import { Router } from "express";
 
 import {
   authenticateToken,
-  verifyManager,
+  verifyAdministrator,
+  verifyClient,
 } from "../../middlewares/tokenValidator.js";
 
 import { validateSchema } from "../../middlewares/validator.middleware.js";
-// import { parkingSchema } from "../../schemas/parking/parking.schema.js";
+import { reservationSchema } from "../../schemas/reservation/reservation.schema.js";
 
 import {
   cancel,
@@ -14,7 +15,6 @@ import {
   checkInReservation,
   checkOutReservation,
   createReservation,
-  finalizeReservation,
   getReservationById,
   getReservations,
   success,
@@ -22,19 +22,27 @@ import {
 
 const router = Router();
 
-router.get("/reservations", getReservations);
-router.get("/reservations/:id", getReservationById);
-router.post("/reservations", [authenticateToken], createReservation);
-router.put("/cancel-reservation/:id", cancelReservation)
+router.get("/reservations", authenticateToken, getReservations);
+router.get("/reservations/:id", authenticateToken, getReservationById);
 
+router.post(
+  "/reservations",
+  [authenticateToken, verifyClient, validateSchema(reservationSchema)],
+  createReservation
+);
+router.put("/cancel-reservation/:id", authenticateToken, cancelReservation);
+router.put(
+  "/check-in/:id",
+  [authenticateToken, verifyAdministrator],
+  checkInReservation
+);
+router.put(
+  "/check-out/:id",
+  [authenticateToken, verifyAdministrator],
+  checkOutReservation
+);
 
-
-router.get("/success", success)
-router.get("/cancel", cancel)
-
-router.put("/cancel-reservation", cancel)
-router.put("/check-in/:id", checkInReservation)
-router.put("/check-out", checkOutReservation)
-router.put("/finalize-reservation", finalizeReservation)
+router.get("/success", success);
+router.get("/cancel", cancel);
 
 export default router;

@@ -61,7 +61,7 @@ export const registerClient = async (req, res, next) => {
       {
         id_user: result.id_user,
       },
-      "1d"
+      "1h"
     );
     const url = `${req.body.url_front}/${token}`;
 
@@ -231,7 +231,7 @@ export const requestToken = async (req, res, next) => {
       {
         id_user: result.id_user,
       },
-      "1d"
+      "20m"
     );
     const url = `${req.body.url}/${token}`;
 

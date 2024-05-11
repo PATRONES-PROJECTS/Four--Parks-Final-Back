@@ -2,11 +2,12 @@ import { prisma } from "../../conn.js";
 import {
   convertParkingData,
   getFormattedMessage,
-  restructureObject
+  restructureObject,
 } from "../../utils/dataConversion.js";
 import { getGeoByText } from "../../utils/googleMaps.js";
+import { getUserByIdService } from "../user/user.service.js";
 
-export const getParkingsService = async (q, query) => {
+export const getParkingsService = async (q, query, isActive) => {
   try {
     let whereClause = {};
     if (q) {
@@ -17,6 +18,10 @@ export const getParkingsService = async (q, query) => {
           { address: { contains: q, mode: "insensitive" } },
         ],
       };
+    }
+
+    if (isActive) {
+      whereClause.is_active = isActive.toLowerCase() === "true";
     }
 
     if (query) {
@@ -40,6 +45,9 @@ export const getParkingsService = async (q, query) => {
           },
         },
       },
+      orderBy: {
+        is_active: "desc", // Ordenar de forma descendente, colocando primero los estacionamientos activos
+      },
     });
 
     if (result && result.length > 0) {
@@ -56,7 +64,7 @@ export const getParkingsService = async (q, query) => {
 
             const formattedSchedule = {
               name_formatted: formattedMessage,
-              ...scheduleJSON
+              ...scheduleJSON,
             };
 
             formattedSchedules.push(formattedSchedule);
@@ -100,9 +108,8 @@ export const getParkingService = async (element, type_search) => {
 
     const formattedSchedule = {
       name_formatted: formattedMessage,
-      ...scheduleJSON
+      ...scheduleJSON,
     };
-    
 
     // Reemplazar el objeto 'schedules' con el horario formateado
     result.schedules = formattedSchedule;
@@ -112,7 +119,6 @@ export const getParkingService = async (element, type_search) => {
     throw error;
   }
 };
-
 
 export const getParkingDuplicates = async (name, address) => {
   try {
@@ -151,6 +157,17 @@ export const createParkingService = async (parking) => {
     // parking.latitude = coordinates.lat;
     // parking.longitude = coordinates.lon;
 
+    if (!parking.is_active) {
+      parking.id_user_fk = null;
+    }
+
+    if (parking.id_user_fk !== null && parking.id_user_fk !== undefined) {
+      const user = await getUserByIdService(parking.id_user_fk);
+      if (user.roles.name !== "Administrador") {
+        throw new Error("El usuario seleccionado no es un Administrador");
+      }
+    }
+
     const result = await prisma.parkings.create({ data: parking });
 
     return result;
@@ -169,6 +186,18 @@ export const updateParkingService = async (id, parking) => {
     //   parking.latitude = coordinates.lat;
     //   parking.longitude = coordinates.lon;
     // }
+
+    if (!parking.is_active) {
+      parking.id_user_fk = null;
+    }
+    console.log(parking.id_user_fk)
+
+    if (parking.id_user_fk !== null && parking.id_user_fk !== undefined) {
+      const user = await getUserByIdService(parking.id_user_fk);
+      if (user.roles.name !== "Administrador") {
+        throw new Error("El usuario seleccionado no es un Administrador");
+      }
+    }
 
     const result = await prisma.parkings.update({
       where: { id_parking: parseInt(id) },

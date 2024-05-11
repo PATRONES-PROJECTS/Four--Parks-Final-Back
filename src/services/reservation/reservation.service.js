@@ -1,6 +1,4 @@
-import { prisma } from "../../conn.js";
-
-import { stripe } from "../../conn.js";
+import { prisma, stripe } from "../../conn.js";
 
 import { restructureObject } from "../../utils/dataConversion.js";
 import {
@@ -11,6 +9,7 @@ import {
   isTwentyFourService,
 } from "../../utils/logicReservation.js";
 import { getParkingService } from "../parking/parking.service.js";
+import { getParkingControllerService } from "../parking/parkingController.service.js";
 import { getScheduleByIdService } from "../parking/schedule.service.js";
 import {
   getLoyaltyByIdService,
@@ -22,8 +21,24 @@ import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
 const reserveAmount = 4000;
 const dolar = 4000;
 
-export const getReservationsService = async (q, query, startDate, endDate) => {
+export const getReservationsService = async (
+  user,
+  q,
+  query,
+  startDate,
+  endDate
+) => {
   try {
+    let idUser = null;
+    let idParking = null;
+
+    if (user.role === "Administrador") {
+      const parking = await getParkingService(user.id_user, "id_user_fk");
+      idParking = parking.id_parking;
+    } else if (user.role === "Cliente") {
+      idUser = user.id_user;
+    }
+
     let whereClause = {};
     if (q) {
       whereClause = {
@@ -65,7 +80,13 @@ export const getReservationsService = async (q, query, startDate, endDate) => {
     }
 
     const result = await prisma.reservations.findMany({
-      where: whereClause,
+      where: {
+        AND: [
+          whereClause, // Otras condiciones de filtrado
+          idParking !== null ? { id_parking_fk: idParking } : {},
+          idUser !== null ? { id_user_fk: idUser } : {}, // Condición opcional para id_parking_fk
+        ],
+      },
       include: {
         users: {
           select: {
@@ -75,6 +96,7 @@ export const getReservationsService = async (q, query, startDate, endDate) => {
         parkings: {
           select: {
             name: true,
+            has_loyalty_service: true,
           },
         },
         vehicles: {
@@ -82,12 +104,7 @@ export const getReservationsService = async (q, query, startDate, endDate) => {
             name: true,
           },
         },
-        invoices: {
-          select: {
-            time: true,
-            total_amount: true,
-          },
-        },
+        invoices: true,
       },
       orderBy: [{ state: "asc" }],
     });
@@ -114,6 +131,7 @@ export const getReservationService = async (element, type_search) => {
         parkings: {
           select: {
             name: true,
+            has_loyalty_service: true,
           },
         },
         vehicles: {
@@ -136,10 +154,13 @@ export const getReservationService = async (element, type_search) => {
 // Recordar pasar el idUser desde el controlador con req.user.id_user
 export const createReservationService = async (reservation, idUser) => {
   try {
+    const countReservation = await countClientReservations(idUser);
+    if (countReservation >= 3)
+      throw new Error("Se tienen tres reservas activas");
+
     let controller = null;
     const currentDate = new Date();
     currentDate.setHours(currentDate.getHours() - 5);
-    // currentDate.setHours(0, 0, 0, 0);
 
     const reservationDate = new Date(reservation.reservation_date);
     reservation.reservation_date = new Date(reservation.reservation_date);
@@ -154,7 +175,7 @@ export const createReservationService = async (reservation, idUser) => {
     );
 
     if (parking.is_active === false)
-      throw new Error("El parqueadero esta desactivado");
+      throw new Error("El parqueadero esta inactivo");
 
     const schedule = await getScheduleByIdService(parking.id_schedule_fk);
 
@@ -237,23 +258,12 @@ export const createReservationService = async (reservation, idUser) => {
         ((serviceAmountPesos + reserveAmount) / dolar) * 100;
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: serviceAmount,
+        amount: Math.round(serviceAmount),
         currency: "usd",
         payment_method_types: ["card"],
         payment_method: "pm_card_visa",
         confirmation_method: "automatic",
       });
-
-      //  await stripe.paymentIntents.update(paymentIntent.id, {
-      //   amount: 750,
-      // });
-
-      // await stripe.paymentIntents.confirm(paymentToken);
-
-      // const refund = await stripe.refunds.create({
-      //   payment_intent: paymentToken,
-      //   amount: 200,
-      // });
 
       paymentToken = paymentIntent.id;
     } else if (paymentMethod.name === "Puntos de Fidelidad") {
@@ -310,7 +320,7 @@ export const createReservationService = async (reservation, idUser) => {
                 description: "Reserva de Four-Parks Colombia",
               },
               currency: "usd",
-              unit_amount: serviceAmount,
+              unit_amount: Math.round(serviceAmount),
             },
             quantity: 1,
           },
@@ -341,6 +351,7 @@ export const createReservationService = async (reservation, idUser) => {
       id_parking_fk: reservation.id_parking_fk,
       id_user_fk: idUser,
     };
+    console.log(reservationData)
 
     const result = await prisma.reservations.create({
       data: reservationData,
@@ -361,6 +372,17 @@ export const createReservationService = async (reservation, idUser) => {
   } catch (error) {
     throw error;
   }
+};
+
+export const countClientReservations = async (id) => {
+  const count = await prisma.reservations.count({
+    where: {
+      id_user_fk: id,
+      state: "Activa",
+    },
+  });
+
+  return count;
 };
 
 export const countReservationService = async (
@@ -411,7 +433,6 @@ export const updateReservationService = async (id, reservation) => {
     });
 
     return result;
-    return result;
   } catch (error) {
     throw error;
   }
@@ -459,7 +480,7 @@ export const cancelReservationService = async (id) => {
 
       if (totalAmount !== 0) {
         await stripe.paymentIntents.update(reservation.invoices.payment_token, {
-          amount: totalAmountDolar,
+          amount: Math.round(totalAmountDolar),
         });
 
         await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
@@ -474,7 +495,7 @@ export const cancelReservationService = async (id) => {
 
       await stripe.refunds.create({
         payment_intent: reservation.invoices.payment_token,
-        amount: refundAmountDolar,
+        amount: Math.round(refundAmountDolar),
       });
     } else if (
       paymentMethod.name === "Puntos de Fidelidad" &&
@@ -499,6 +520,7 @@ export const cancelReservationService = async (id) => {
 
     const invoiceData = {
       refund_amount: refundAmount,
+      time: 0,
       total_amount: totalAmount,
     };
     invoice = await updateInvoiceService(
@@ -519,7 +541,7 @@ export const checkInReservationService = async (id) => {
       "id_reservation"
     );
 
-    if(reservation.status !== "Activa"){
+    if (reservation.state !== "Activa") {
       throw new Error("La reserva no esta activa");
     }
 
@@ -539,19 +561,15 @@ export const checkInReservationService = async (id) => {
       const dateReservation = {
         check_in: currentDate,
       };
-      const reservation = await updateReservationService(
+      const updatedReservation = await updateReservationService(
         parseInt(id),
         dateReservation
       );
 
-      return reservation
+      return updatedReservation;
     } else {
       throw new Error("No esta dentro del rango de la reserva");
     }
-
-    // console.log(currentDate);
-    // console.log(reservation.entry_reservation_date);
-    // console.log(reservation.departure_reservation_date);
   } catch (error) {
     throw error;
   }
@@ -559,6 +577,167 @@ export const checkInReservationService = async (id) => {
 
 export const checkOutReservationService = async (id) => {
   try {
+    const reservation = await getReservationService(
+      parseInt(id),
+      "id_reservation"
+    );
+
+    if (reservation.state !== "Activa") {
+      throw new Error("La reserva no esta activa");
+    }
+
+    if (reservation.check_in === null) {
+      throw new Error("No se ha realizado un check in");
+    }
+
+    const currentDate = new Date();
+    currentDate.setHours(currentDate.getHours() - 5);
+    reservation.entry_reservation_date = new Date(
+      reservation.entry_reservation_date
+    );
+    reservation.departure_reservation_date = new Date(
+      reservation.departure_reservation_date
+    );
+
+    const controller = await getParkingControllerService(
+      reservation.id_parking_fk,
+      reservation.id_vehicle_fk
+    );
+
+    const differenceMs = currentDate - reservation.departure_reservation_date;
+    const differenceMinutes = Math.floor(differenceMs / (1000 * 60));
+
+    const extraAmount = controller.fee * differenceMinutes;
+
+    if (
+      currentDate >= reservation.entry_reservation_date &&
+      currentDate <= reservation.departure_reservation_date
+    ) {
+      const paymentMethod = await getPaymentMethodByIdService(
+        reservation.invoices.id_payment_method_fk
+      );
+
+      if (paymentMethod.name === "Tarjeta Personal") {
+        await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
+      }
+
+      const reservationData = {
+        state: "Finalizado",
+        check_out: currentDate,
+      };
+      await updateReservationService(
+        reservation.id_reservation,
+        reservationData
+      );
+
+      if (reservation.parkings.has_loyalty_service) {
+        const totalPoints = Math.round(
+          reservation.invoices.total_amount / 4000
+        );
+
+        const loyalty = await getLoyaltyByIdService(
+          reservation.users.id_user,
+          "id_user_fk"
+        );
+
+        const loyaltyPoints = loyalty.loyalty_points + totalPoints;
+
+        await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
+      }
+
+      return reservation.invoices;
+    } else if (currentDate > reservation.departure_reservation_date) {
+      // Mirar minutos extra y hacer la lógica prevista
+
+      const paymentMethod = await getPaymentMethodByIdService(
+        reservation.invoices.id_payment_method_fk
+      );
+
+      if (paymentMethod.name === "Tarjeta Personal") {
+        const totalAmount = reservation.invoices.total_amount;
+        const totalAmountDolar = ((totalAmount + extraAmount) / dolar) * 100;
+        console.log(totalAmount);
+
+        await stripe.paymentIntents.update(reservation.invoices.payment_token, {
+          amount: Math.round(totalAmountDolar),
+        });
+
+        await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
+      } else if (paymentMethod.name === "Otro Método de Pago") {
+        const totalAmount = reservation.invoices.total_amount;
+        let totalAmountDolar = (totalAmount / dolar) * 100;
+
+        await stripe.refunds.create({
+          payment_intent: reservation.invoices.payment_token,
+          amount: Math.round(totalAmountDolar),
+        });
+
+        totalAmountDolar = ((totalAmount + extraAmount) / dolar) * 100;
+
+        const pay = await stripe.paymentIntents.create({
+          amount: Math.round(totalAmountDolar),
+          currency: "usd",
+          payment_method_types: ["card"],
+          payment_method: "pm_card_visa",
+          confirmation_method: "automatic",
+        });
+
+        await stripe.paymentIntents.confirm(pay.id);
+
+        const invoice = {
+          payment_token: pay.id,
+        };
+        await updateInvoiceService(reservation.invoices.id_invoice, invoice);
+      } else if (paymentMethod.name === "Puntos de Fidelidad") {
+        console.log("Entra aca");
+        const extraAmountPoints = Math.round(extraAmount / 4000);
+
+        const loyalty = await getLoyaltyByIdService(
+          reservation.users.id_user,
+          "id_user_fk"
+        );
+
+        const loyaltyPoints = loyalty.loyalty_points - extraAmountPoints;
+
+        await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
+      }
+
+      const reservationData = {
+        state: "Finalizado",
+        check_out: currentDate,
+      };
+      await updateReservationService(
+        reservation.id_reservation,
+        reservationData
+      );
+
+      const invoiceData = {
+        extra_time_amount: extraAmount,
+        time: reservation.invoices.time + differenceMinutes,
+        total_amount: reservation.invoices.total_amount + extraAmount,
+      };
+      const invoice = await updateInvoiceService(
+        reservation.invoices.id_invoice,
+        invoiceData
+      );
+
+      if (reservation.parkings.has_loyalty_service) {
+        const totalPoints = Math.round(invoiceData.total_amount / 4000);
+
+        const loyalty = await getLoyaltyByIdService(
+          reservation.users.id_user,
+          "id_user_fk"
+        );
+
+        const loyaltyPoints = loyalty.loyalty_points + totalPoints;
+
+        await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
+      }
+
+      return invoice;
+    } else {
+      throw new Error("No esta dentro del rango de la reserva");
+    }
   } catch (error) {
     throw error;
   }
