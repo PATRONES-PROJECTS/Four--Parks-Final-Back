@@ -7,6 +7,18 @@ import {
   getReservationStatisticsService,
 } from "../reservation/reservation.service.js";
 
+import PDFDocument from "pdfkit-table";
+
+import {
+  createBarChart,
+  createPieChart,
+  createScatterChart,
+} from "../../utils/graphicsGenerator.js";
+
+import ExcelJS from "exceljs";
+
+import fetch from "node-fetch";
+
 export const getStaticsByAdminService = async (
   startDateText,
   endDateText,
@@ -443,16 +455,261 @@ export const getGeneralStaticsService = async (
   }
 };
 
-// getReservationsByHourService
-
-export const getReservationsByHourService = async (
-  startDateText,
-  endDateText,
-  cityId,
-  parkingId
+export const getStatisticsPDFService = async (
+  dataCallback,
+  endCallback,
+  data
 ) => {
   try {
-  
+    const doc = new PDFDocument();
+
+    doc.on("data", dataCallback);
+    doc.on("end", endCallback);
+
+    const addHeaderAndBorder = async () => {
+      // Agregar imagen al encabezado a la derecha
+      const logoUrl =
+        "https://res.cloudinary.com/dfuxpzt0w/image/upload/v1715136225/Logo.png";
+      const logoResponse = await fetch(logoUrl);
+      const logoBuffer = await logoResponse.buffer();
+      doc.image(logoBuffer, 450, 10, { width: 100 });
+
+      // Agregar borde naranja claro a la izquierda
+      doc.rect(10, 0, 10, 800).fill("#FFCC99");
+    };
+
+    // Primera página
+    await addHeaderAndBorder();
+
+    // Título del documento
+    doc.fontSize(20).text("Informe Estadístico", {
+      align: "center",
+    });
+    doc.moveDown();
+    doc.fontSize(30).text("Four-Parks Colombia", {
+      align: "center",
+    });
+    doc.moveDown();
+
+    // Tabla con información general
+    doc.fontSize(14).text("Información General", { underline: true });
+    doc.moveDown();
+    doc.table({
+      headers: [
+        "Total de Ingresos",
+        "Total de Horas",
+        "Reservas Finalizadas",
+        "Reservas Canceladas",
+      ],
+      rows: [
+        [
+          data.getGeneralStatics.totalRevenue,
+          data.getGeneralStatics.totalHours,
+          data.getGeneralStatics.finishedReservations,
+          data.getGeneralStatics.canceledReservations,
+        ],
+      ],
+    });
+    doc.moveDown();
+
+    // Información sobre reservas por hora
+    doc
+      .fillColor("#FFCC99")
+      .fontSize(14)
+      .text("Reservas por Hora", { underline: true });
+    const scatterChartImage = createScatterChart(data.countReservationByHour);
+    doc.image(scatterChartImage, { fit: [400, 400], align: "center" });
+    doc.addPage();
+    await addHeaderAndBorder();
+
+    // Ganancias de reservas por parqueadero
+    doc
+      .fontSize(14)
+      .text("Ganancias de Reservas por Parqueadero", { underline: true });
+    const earningsParkingChart = createBarChart(data.countEarningsByParking);
+    doc.image(earningsParkingChart, { fit: [400, 400], align: "center" });
+    doc.addPage();
+    await addHeaderAndBorder();
+
+    // Cantidad de reservas por parqueadero
+    doc
+      .fontSize(14)
+      .text("Cantidad de Reservas por Parqueadero", { underline: true });
+    const countParkingChart = createBarChart(data.countReservationsByParking);
+    doc.image(countParkingChart, { fit: [400, 400], align: "center" });
+    doc.addPage();
+    await addHeaderAndBorder();
+
+    // Ganancias de reservas por vehículo
+    doc
+      .fontSize(14)
+      .text("Ganancias de Reservas por Vehículo", { underline: true });
+    const earningsVehicleChart = createPieChart(data.countEarningsByVehicle);
+    doc.image(earningsVehicleChart, { fit: [400, 400], align: "center" });
+    doc.addPage();
+    await addHeaderAndBorder();
+
+    // Ganancias de reservas por método de pago
+    doc
+      .fontSize(14)
+      .text("Ganancias de Reservas por Método de Pago", { underline: true });
+    const earningsPaymentMethodChart = createPieChart(
+      data.countEarningsByPaymentMethod
+    );
+    doc.image(earningsPaymentMethodChart, { fit: [400, 400], align: "center" });
+
+    // Finalizar y guardar el PDF
+    doc.end();
+
+    return "Informe generado correctamente.";
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getStatisticsExcelService = async (data) => {
+  try {
+    // Crear un nuevo libro de Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(
+      "Informe Estadístico Four-Parks Colombia"
+    );
+
+    // Agregar la información general en la hoja de Excel
+    worksheet.addRow([
+      "Total de Ingresos",
+      "Total de Horas",
+      "Reservas Finalizadas",
+      "Reservas Canceladas",
+    ]);
+    worksheet.addRow([
+      data.getGeneralStatics.totalRevenue,
+      data.getGeneralStatics.totalHours,
+      data.getGeneralStatics.finishedReservations,
+      data.getGeneralStatics.canceledReservations,
+    ]);
+
+    // Establecer el ancho de las columnas
+    worksheet.columns.forEach((column) => {
+      column.width = 20;
+    });
+
+    // Establecer formato para la fila de encabezados
+    worksheet.getRow(1).font = { bold: true };
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Gráfico de Reservas por Hora"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const scatterChartImageBase64 = createScatterChart(
+      data.countReservationByHour
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageId = workbook.addImage({
+      base64: scatterChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageId, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Ganancias de Reservas por Parqueadero"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const earningsParkingChartImageBase64 = createBarChart(
+      data.countEarningsByParking
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageEarningsParking = workbook.addImage({
+      base64: earningsParkingChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageEarningsParking, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Cantidad de Reservas por Parqueadero"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const countParkingChartImageBase64 = createBarChart(
+      data.countReservationsByParking
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageCountParking = workbook.addImage({
+      base64: countParkingChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageCountParking, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Ganancias de Reservas por Vehículo"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const earningsVehicleChartImageBase64 = createPieChart(
+      data.countEarningsByVehicle
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageEarningsVehicle = workbook.addImage({
+      base64: earningsVehicleChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageEarningsVehicle, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Ganancias de Reservas por Método de Pago"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const earningsPaymentMethodChartImageBase64 = createPieChart(
+      data.countEarningsByPaymentMethod
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageEarningsPaymentMethod = workbook.addImage({
+      base64: earningsPaymentMethodChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageEarningsPaymentMethod, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Guardar el libro de Excel en un buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    return buffer;
   } catch (error) {
     throw error;
   }

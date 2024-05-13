@@ -12,12 +12,22 @@ import { statisticSchema } from "../../schemas/statistic/statistic.schema.js";
 import {
   getStaticsByAdmin,
   getStaticsByManager,
-  getStatistics,
+  getStatisticsExcel,
+  getStatisticsPDF,
 } from "../../controllers/statistic/statistic.controller.js";
 
 const router = Router();
 
-router.post("/statistics", getStatistics);
+router.post(
+  "/statistics-excel",
+  [authenticateToken, verifyManager, validateSchema(statisticSchema)],
+  getStatisticsExcel
+);
+router.post(
+  "/statistics-pdf",
+  [authenticateToken, verifyManager, validateSchema(statisticSchema)],
+  getStatisticsPDF
+);
 
 router.post(
   "/statistics-admin",
