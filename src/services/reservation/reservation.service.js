@@ -15,7 +15,9 @@ import {
   getLoyaltyByIdService,
   updateLoyaltyService,
 } from "../user/loyalty.service.js";
-import { updateInvoiceService } from "./invoice.service.js";
+import { generateInvoiceMail, sendMail } from "../user/mail.service.js";
+import { createRecordService } from "../user/record.service.js";
+import { getInvoiceService, updateInvoiceService } from "./invoice.service.js";
 import { getPaymentMethodByIdService } from "./paymentMethod.service.js";
 
 const reserveAmount = 4000;
@@ -336,6 +338,7 @@ export const createReservationService = async (reservation, idUser) => {
 
       invoice.other_payment_method = true;
       invoice.url = session.url;
+      
       return invoice;
     }
 
@@ -351,7 +354,7 @@ export const createReservationService = async (reservation, idUser) => {
       id_parking_fk: reservation.id_parking_fk,
       id_user_fk: idUser,
     };
-    console.log(reservationData)
+    console.log(reservationData);
 
     const result = await prisma.reservations.create({
       data: reservationData,
@@ -528,6 +531,8 @@ export const cancelReservationService = async (id) => {
       invoiceData
     );
 
+    await generateInvoiceMail(invoice.id_invoice);
+
     return invoice;
   } catch (error) {
     throw error;
@@ -645,6 +650,8 @@ export const checkOutReservationService = async (id) => {
         await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
       }
 
+      await generateInvoiceMail(reservation.invoices.id_invoice);
+
       return reservation.invoices;
     } else if (currentDate > reservation.departure_reservation_date) {
       // Mirar minutos extra y hacer la lógica prevista
@@ -734,10 +741,139 @@ export const checkOutReservationService = async (id) => {
         await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
       }
 
+      await generateInvoiceMail(invoice.id_invoice);
+
       return invoice;
     } else {
       throw new Error("No esta dentro del rango de la reserva");
     }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getReservationStatisticsService = async (whereCondition) => {
+  try {
+    const result = await prisma.reservations.findMany({
+      where: whereCondition,
+      include: {
+        invoices: {
+          select: {
+            id_payment_method_fk: true,
+            total_amount: true,
+            payment_methods: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        vehicles: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const countReservationStatisticsService = async (
+  state,
+  whereCondition
+) => {
+  try {
+    const result = await prisma.reservations.count({
+      where: {
+        state: state,
+        ...whereCondition,
+      },
+    });
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const returnMoneyFromReservations = async (idParking) => {
+  try {
+    const activeReservations = await prisma.reservations.findMany({
+      where: {
+        state: "Activa",
+        id_parking_fk: idParking,
+      },
+      include: {
+        invoices: true,
+        users: true,
+      },
+    });
+
+    for (const reservation of activeReservations) {
+      let invoice = null;
+      let refundAmount = 0;
+      let totalAmount = 0;
+
+      const paymentMethod = await getPaymentMethodByIdService(
+        reservation.invoices.id_payment_method_fk
+      );
+
+      refundAmount = reservation.invoices.total_amount;
+
+      if (paymentMethod.name === "Tarjeta Personal" && refundAmount !== 0) {
+        await stripe.paymentIntents.cancel(reservation.invoices.payment_token);
+      } else if (
+        paymentMethod.name === "Otro Método de Pago" &&
+        refundAmount !== 0
+      ) {
+        const refundAmountDolar = (refundAmount / dolar) * 100;
+
+        await stripe.refunds.create({
+          payment_intent: reservation.invoices.payment_token,
+          amount: Math.round(refundAmountDolar),
+        });
+      } else if (
+        paymentMethod.name === "Puntos de Fidelidad" &&
+        refundAmount !== 0
+      ) {
+        const refundAmountPoints = Math.round(refundAmount / 4000);
+
+        const loyalty = await getLoyaltyByIdService(
+          reservation.users.id_user,
+          "id_user_fk"
+        );
+
+        const loyaltyPoints = loyalty.loyalty_points + refundAmountPoints;
+
+        await updateLoyaltyService(loyalty.id_loyalty, loyaltyPoints);
+      }
+
+      const reservationData = {
+        state: "Cancelado",
+      };
+      await updateReservationService(
+        reservation.id_reservation,
+        reservationData
+      );
+
+      const invoiceData = {
+        refund_amount: refundAmount,
+        time: 0,
+        total_amount: totalAmount,
+      };
+      invoice = await updateInvoiceService(
+        reservation.invoices.id_invoice,
+        invoiceData
+      );
+
+      await generateInvoiceMail(reservation.invoices.id_invoice);
+    }
+
+    return activeReservations;
   } catch (error) {
     throw error;
   }

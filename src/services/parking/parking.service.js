@@ -179,6 +179,7 @@ export const createParkingService = async (parking) => {
 export const updateParkingService = async (id, parking) => {
   try {
     parking = convertParkingData(parking);
+    console.log(parking.is_active)
     // if (parking.address) {
     //   parking = convertParkingData(parking);
 
@@ -190,7 +191,6 @@ export const updateParkingService = async (id, parking) => {
     if (!parking.is_active) {
       parking.id_user_fk = null;
     }
-    console.log(parking.id_user_fk)
 
     if (parking.id_user_fk !== null && parking.id_user_fk !== undefined) {
       const user = await getUserByIdService(parking.id_user_fk);
@@ -215,6 +215,30 @@ export const deleteParkingService = async (id) => {
     await prisma.parkings.delete({
       where: { id_parking: parseInt(id) },
     });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getParkingsStatisticsService = async (cityId, whereCondition) => {
+  try {
+    const result = await prisma.parkings.findMany({
+      where: {
+        cities: {
+          id_city: cityId,
+        },
+      },
+      include: {
+        reservations: {
+          where: whereCondition,
+          include: {
+            invoices: true,
+          },
+        },
+      },
+    });
+
+    return result;
   } catch (error) {
     throw error;
   }

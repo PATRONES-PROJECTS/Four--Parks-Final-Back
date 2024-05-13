@@ -20,12 +20,13 @@ import paymentMethodRoutes from "./routes/reservation/paymentMethod.routes.js";
 import reservationRoutes from "./routes/reservation/reservation.routes.js";
 import invoicesRoutes from "./routes/reservation/invoice.routes.js";
 
+import statisticRoute from "./routes/statistic/statistic.routes.js";
+
 import mapsRoutes from "./utils/googleMaps.js";
 
 import { createDates } from "./seed.js";
 
 const app = express();
-
 
 // Permite comunicar servidores de manera simple, en este caso con el front-end
 app.use(
@@ -72,6 +73,8 @@ app.use("/api", paymentMethodRoutes);
 app.use("/api", reservationRoutes);
 app.use("/api", invoicesRoutes);
 
+app.use("/api", statisticRoute);
+
 app.use("/api", mapsRoutes);
 
 // createDates();
@@ -89,12 +92,13 @@ app.use((err, req, res, next) => {
       address: "La dirección ya ha sido registrada.",
       identification_card: "La cédula ya ha sido registrada.",
       name: "El nombre ya ha sido registrado.",
-      id_user_fk: "El administrador ya tiene asignado un parqueadero"
+      id_user_fk: "El administrador ya tiene asignado un parqueadero",
       // Agrega más campos y mensajes de error según sea necesario
     };
 
     // Generar el mensaje de error en español utilizando el mapa de mensajes
-    const errorMessage = errorMessageMap[field] || "Error en uno de los campos.";
+    const errorMessage =
+      errorMessageMap[field] || "Error en uno de los campos.";
 
     return res.status(404).json({ message: errorMessage });
   }

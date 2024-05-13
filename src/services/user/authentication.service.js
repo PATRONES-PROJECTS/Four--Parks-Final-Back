@@ -1,6 +1,9 @@
 import { prisma } from "../../conn.js";
 
 import { encryptString } from "../../utils/dataConversion.js";
+import { sendMail } from "./mail.service.js";
+
+import { dataManager } from "../../config.js";
 
 export const getUserControllerService = async (idUser, token) => {
   try {
@@ -47,9 +50,10 @@ export const updateUserControllerService = async (
 
 export const checkUserStates = async (user) => {
   try {
+    console.log(user.user_controllers.login_attempts);
     // Proceso solo para clientes
     if (user.roles.name === "Cliente") {
-      if (user.user_controllers.login_attempts >= 4) {
+      if (user.user_controllers.login_attempts >= 2) {
         await updateUserControllerService(
           user.id_user,
           {
@@ -91,9 +95,25 @@ export const verifyPassword = async (password, user) => {
           "id_user_fk"
         );
       }
+      await checkUserStates(user);
+
+      if (user.user_controllers.login_attempts === 2) {
+        try {
+          await sendMail(dataManager.mail, user.user_name, null, "Blocked");
+        } catch (error) {
+          throw new Error("No se pudo enviar el correo");
+        }
+      }
       // Falta aumentar el número de intentos y creo que bloquear
       throw new Error("Contraseña incorrecta");
     }
+
+    console.log(user.user_controllers.login_attempts);
+
+    if (user.roles.name === "Cliente") {
+      await checkUserStates(user);
+    }
+
     await updateUserControllerService(
       user.id_user,
       {

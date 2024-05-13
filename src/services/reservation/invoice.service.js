@@ -34,7 +34,8 @@ export const getInvoicesService = async (
   q,
   query,
   startDate,
-  endDate
+  endDate,
+  pagination // Nuevo parámetro para la paginación
 ) => {
   try {
     let idUser = null;
@@ -109,6 +110,7 @@ export const getInvoicesService = async (
             users: {
               select: {
                 user_name: true,
+                mail: true,
               },
             },
             parkings: {
@@ -129,6 +131,8 @@ export const getInvoicesService = async (
           },
         },
       },
+      take: pagination.limit || undefined, // Tomar un número limitado de registros
+      skip: pagination.offset || undefined,
     });
 
     return result;
@@ -151,6 +155,7 @@ export const getInvoiceService = async (element, type_search) => {
             users: {
               select: {
                 user_name: true,
+                mail: true,
               },
             },
             parkings: {
@@ -174,6 +179,23 @@ export const getInvoiceService = async (element, type_search) => {
     });
 
     if (!result) throw new Error("No se encontró la factura");
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getInvoiceStatisticsService = async (element, whereCondition) => {
+  try {
+    const result = await prisma.invoices.aggregate({
+      _sum: {
+        [element]: true,
+      },
+      where: {
+        reservations: whereCondition,
+      },
+    });
 
     return result;
   } catch (error) {

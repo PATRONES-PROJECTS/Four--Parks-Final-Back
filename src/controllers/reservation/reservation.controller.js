@@ -10,6 +10,7 @@ import {
 } from "../../services/reservation/reservation.service.js";
 
 import { stripe } from "../../conn.js";
+import { createRecordService } from "../../services/user/record.service.js";
 
 export const getReservations = async (req, res, next) => {
   try {
@@ -51,6 +52,15 @@ export const createReservation = async (req, res, next) => {
     const id = req.user.id_user;
 
     const reservation = await createReservationService(req.body, id);
+
+    const record = {
+      action: "Creación de reserva",
+      ip_user: req.headers["x-forwarded-for"]
+        ? req.headers["x-forwarded-for"].split(",")[0].trim()
+        : req.socket.remoteAddress,
+      id_user_fk: id,
+    };
+    await createRecordService(record);
 
     if (reservation.other_payment_method) {
       res.json(reservation);

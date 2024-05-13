@@ -145,8 +145,7 @@ export const login = async (req, res, next) => {
       "user_name"
     );
 
-    await checkUserStates(result);
-
+    
     await verifyPassword(req.body.password, result);
 
     const record = {

@@ -18,6 +18,7 @@ import {
   createParkingControllerService,
   updateParkingControllerService,
 } from "../../services/parking/parkingController.service.js";
+import { returnMoneyFromReservations } from "../../services/reservation/reservation.service.js";
 
 export const getParkings = async (req, res, next) => {
   try {
@@ -127,7 +128,8 @@ export const updateParking = async (req, res, next) => {
       id_city_fk: req.body.id_city_fk,
       id_user_fk: req.body.id_user_fk || null,
     };
-    await updateParkingService(parseInt(id), parking);
+
+    const parkingTemporary = await updateParkingService(parseInt(id), parking);
 
     req.body.name = oldParking.name;
     await deleteImage(req);
@@ -137,6 +139,7 @@ export const updateParking = async (req, res, next) => {
 
     const parkingImage = {
       image_path: req.body.imageURL,
+      is_active: parkingTemporary.is_active,
     };
     const result = await updateParkingService(parseInt(id), parkingImage);
 
@@ -157,6 +160,10 @@ export const updateParking = async (req, res, next) => {
         result.id_parking,
         parkingController
       );
+    }
+
+    if (!result.is_active) {
+      await returnMoneyFromReservations(result.id_parking);
     }
 
     res.json(result);
@@ -185,7 +192,7 @@ export const updateParkingWithoutImage = async (req, res, next) => {
       id_city_fk: req.body.id_city_fk,
       id_user_fk: req.body.id_user_fk || null,
     };
-    await updateParkingService(parseInt(id), parking);
+    const parkingTemporary = await updateParkingService(parseInt(id), parking);
 
     req.body.name = newName;
     req.body.oldName = oldParking.name;
@@ -194,6 +201,7 @@ export const updateParkingWithoutImage = async (req, res, next) => {
 
     const parkingImage = {
       image_path: req.body.imageURL,
+      is_active: parkingTemporary.is_active,
     };
     const result = await updateParkingService(parseInt(id), parkingImage);
 
@@ -214,6 +222,10 @@ export const updateParkingWithoutImage = async (req, res, next) => {
         result.id_parking,
         parkingController
       );
+    }
+
+    if (!result.is_active) {
+      await returnMoneyFromReservations(result.id_parking);
     }
 
     res.json(result);
