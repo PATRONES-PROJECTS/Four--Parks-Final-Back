@@ -15,8 +15,10 @@ export const getUsers = async (req, res, next) => {
   try {
     let q = req.query.q;
     let query = req.query;
+    const limit = parseInt(req.query.limit);
+    const offset = parseInt(req.query.offset);
 
-    const result = await getUsersService(q, query);
+    const result = await getUsersService(q, query, { limit, offset });
 
     res.json(result);
   } catch (error) {
@@ -43,7 +45,7 @@ export const getAdministrators = async (req, res, next) => {
   try {
     let q = req.query.q;
     let query = req.query;
-    
+
     const result = await getUserWithRoleService("Administrador", q, query);
 
     res.json(result);

@@ -257,6 +257,10 @@ const invoiceMail = (data) => {
   <p>Gracias por completar tu reserva en <strong>${data.parkingName}</strong>. A continuación, te enviamos la factura con los detalles de tu reserva:</p>
   <table>
     <tr>
+      <th>Número de Factura</th>
+      <td>${data.idInvoice}</td>
+    </tr>
+    <tr>
       <th>Fecha de reserva</th>
       <td>${data.reservationDate}</td>
     </tr>
@@ -315,6 +319,7 @@ export const generateInvoiceMail = async (id) => {
   };
   dateInvoiceUser = dateInvoiceUser.toLocaleDateString("es-CO", options);
   const data = {
+    idInvoice: invoiceUser.id_invoice,
     userName: invoiceUser.reservations.users.user_name,
     parkingName: invoiceUser.reservations.parkings.name,
     reservationDate: dateInvoiceUser,

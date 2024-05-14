@@ -28,7 +28,8 @@ export const getReservationsService = async (
   q,
   query,
   startDate,
-  endDate
+  endDate,
+  pagination
 ) => {
   try {
     let idUser = null;
@@ -109,6 +110,8 @@ export const getReservationsService = async (
         invoices: true,
       },
       orderBy: [{ state: "asc" }],
+      take: pagination.limit || undefined, // Tomar un número limitado de registros
+      skip: pagination.offset || undefined,
     });
 
     return result;
@@ -338,7 +341,7 @@ export const createReservationService = async (reservation, idUser) => {
 
       invoice.other_payment_method = true;
       invoice.url = session.url;
-      
+
       return invoice;
     }
 

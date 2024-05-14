@@ -11,6 +11,7 @@ import PDFDocument from "pdfkit-table";
 
 import {
   createBarChart,
+  createLineChart,
   createPieChart,
   createScatterChart,
 } from "../../utils/graphicsGenerator.js";
@@ -69,6 +70,10 @@ export const getStaticsByAdminService = async (
       parkingId
     );
 
+    const countEarningByDays = await countEarningsByDayOfWeekService(
+      reservations
+    );
+
     const data = {
       countReservationByHour,
       countReservationsByVehicle,
@@ -76,6 +81,7 @@ export const getStaticsByAdminService = async (
       countEarningsByPaymentMethod,
       countEarningsByVehicle,
       getGeneralStatics,
+      countEarningByDays,
     };
     return data;
   } catch (error) {
@@ -157,6 +163,10 @@ export const getStaticsByManagerService = async (
       parkingId
     );
 
+    const countEarningByDays = await countEarningsByDayOfWeekService(
+      reservations
+    );
+
     const data = {
       countReservationByHour,
       countReservationsByVehicle,
@@ -166,6 +176,7 @@ export const getStaticsByManagerService = async (
       countEarningsByParking,
       countReservationsByParking,
       getGeneralStatics,
+      countEarningByDays,
     };
     return data;
   } catch (error) {
@@ -469,7 +480,7 @@ export const getStatisticsPDFService = async (
     const addHeaderAndBorder = async () => {
       // Agregar imagen al encabezado a la derecha
       const logoUrl =
-        "https://res.cloudinary.com/dfuxpzt0w/image/upload/v1715136225/Logo.png";
+        "https://res.cloudinary.com/dw0g9efli/image/upload/v1715640045/Logo2.png";
       const logoResponse = await fetch(logoUrl);
       const logoBuffer = await logoResponse.buffer();
       doc.image(logoBuffer, 450, 10, { width: 100 });
@@ -519,6 +530,14 @@ export const getStatisticsPDFService = async (
       .text("Reservas por Hora", { underline: true });
     const scatterChartImage = createScatterChart(data.countReservationByHour);
     doc.image(scatterChartImage, { fit: [400, 400], align: "center" });
+    doc.addPage();
+    await addHeaderAndBorder();
+
+    doc
+      .fontSize(14)
+      .text("Ganancias de Reservas por Días", { underline: true });
+    const earningsDaysChart = createLineChart(data.countEarningByDays);
+    doc.image(earningsDaysChart, { fit: [400, 400], align: "center" });
     doc.addPage();
     await addHeaderAndBorder();
 
@@ -622,6 +641,28 @@ export const getStatisticsExcelService = async (data) => {
     worksheet.addRow([]);
 
     // Agregar el título del gráfico de dispersión
+    worksheet.addRow(["Ganancias de Reservas por Días"]);
+
+    // Crear el gráfico de dispersión y obtener la imagen en base64
+    const earningsDaysChartImageBase64 = createLineChart(
+      data.countEarningByDays
+    );
+
+    // Agregar la imagen como un enlace en la hoja de Excel
+    const imageEarningsDays = workbook.addImage({
+      base64: earningsDaysChartImageBase64,
+      extension: "png",
+    });
+
+    worksheet.addImage(imageEarningsDays, {
+      tl: { col: 1, row: worksheet.lastRow.number + 1 },
+      br: { col: 10, row: worksheet.lastRow.number + 25 },
+    });
+
+    // Agregar una fila vacía para separar
+    worksheet.addRow([]);
+
+    // Agregar el título del gráfico de dispersión
     worksheet.addRow(["Ganancias de Reservas por Parqueadero"]);
 
     // Crear el gráfico de dispersión y obtener la imagen en base64
@@ -710,6 +751,36 @@ export const getStatisticsExcelService = async (data) => {
     const buffer = await workbook.xlsx.writeBuffer();
 
     return buffer;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const countEarningsByDayOfWeekService = async (reservations) => {
+  try {
+    const revenueByDayOfWeek = {
+      lunes: 0,
+      martes: 0,
+      miércoles: 0,
+      jueves: 0,
+      viernes: 0,
+      sábado: 0,
+      domingo: 0,
+    };
+
+    for (const reservation of reservations) {
+      const invoice = reservation.invoices;
+
+      const totalAmount = invoice.total_amount;
+      const entryDate = new Date(reservation.entry_reservation_date);
+      const dayOfWeek = entryDate.toLocaleDateString("es-ES", {
+        weekday: "long",
+      });
+
+      revenueByDayOfWeek[dayOfWeek] += totalAmount;
+    }
+
+    return revenueByDayOfWeek;
   } catch (error) {
     throw error;
   }

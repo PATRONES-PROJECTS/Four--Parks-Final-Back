@@ -8,9 +8,14 @@ import { getUserByParameterService } from "../../services/user/user.service.js";
 export const getRecords = async (req, res, next) => {
   try {
     let query = req.query;
-    const {q, startDate, endDate } = req.query;
+    const { q, startDate, endDate } = req.query;
+    const limit = parseInt(req.query.limit);
+    const offset = parseInt(req.query.offset);
 
-    const result = await getRecordsService(q, query, startDate, endDate);
+    const result = await getRecordsService(q, query, startDate, endDate, {
+      limit,
+      offset,
+    });
 
     res.json(result);
   } catch (error) {

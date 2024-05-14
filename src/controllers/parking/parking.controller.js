@@ -25,7 +25,12 @@ export const getParkings = async (req, res, next) => {
     let q = req.query.q;
     let query = req.query;
     let isActive = req.query.isActive;
-    const result = await getParkingsService(q, query, isActive);
+    const limit = parseInt(req.query.limit);
+    const offset = parseInt(req.query.offset);
+    const result = await getParkingsService(q, query, isActive, {
+      limit,
+      offset,
+    });
 
     res.json(result);
   } catch (error) {

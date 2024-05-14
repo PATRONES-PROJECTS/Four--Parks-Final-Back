@@ -156,3 +156,48 @@ export const createPieChart = (data) => {
   // Convertir el canvas a una imagen en formato base64
   return canvas.toDataURL();
 };
+
+export const createLineChart = (data) => {
+  // Crear un canvas para el gráfico
+  const canvas = createCanvas(400, 400);
+  const ctx = canvas.getContext("2d");
+
+  // Configurar datos para el gráfico
+  const labels = Object.keys(data);
+  const values = Object.values(data);
+
+  // Crear el gráfico con Chart.js
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Ganancias",
+        data: values,
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
+        borderColor: "rgb(75, 192, 192)",
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Ganancias"
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: "Día de la Semana"
+          }
+        }
+      }
+    }
+  });
+
+  // Convertir el canvas a una imagen en formato base64
+  return canvas.toDataURL();
+};

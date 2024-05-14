@@ -1,7 +1,13 @@
 import { prisma } from "../../conn.js";
 import { restructureObject } from "../../utils/dataConversion.js";
 
-export const getRecordsService = async (q, query, startDate, endDate) => {
+export const getRecordsService = async (
+  q,
+  query,
+  startDate,
+  endDate,
+  pagination
+) => {
   try {
     let whereClause = {};
 
@@ -53,6 +59,8 @@ export const getRecordsService = async (q, query, startDate, endDate) => {
           },
         },
       },
+      take: pagination.limit || undefined, // Tomar un número limitado de registros
+      skip: pagination.offset || undefined,
     });
 
     result.forEach((record) => {

@@ -7,7 +7,7 @@ import {
 import { getGeoByText } from "../../utils/googleMaps.js";
 import { getUserByIdService } from "../user/user.service.js";
 
-export const getParkingsService = async (q, query, isActive) => {
+export const getParkingsService = async (q, query, isActive, pagination) => {
   try {
     let whereClause = {};
     if (q) {
@@ -48,6 +48,8 @@ export const getParkingsService = async (q, query, isActive) => {
       orderBy: {
         is_active: "desc", // Ordenar de forma descendente, colocando primero los estacionamientos activos
       },
+      take: pagination.limit || undefined, // Tomar un número limitado de registros
+      skip: pagination.offset || undefined,
     });
 
     if (result && result.length > 0) {
@@ -179,7 +181,7 @@ export const createParkingService = async (parking) => {
 export const updateParkingService = async (id, parking) => {
   try {
     parking = convertParkingData(parking);
-    console.log(parking.is_active)
+    console.log(parking.is_active);
     // if (parking.address) {
     //   parking = convertParkingData(parking);
 

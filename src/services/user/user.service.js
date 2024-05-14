@@ -2,10 +2,10 @@ import { prisma } from "../../conn.js";
 import {
   convertUserData,
   encryptString,
-  restructureObject
+  restructureObject,
 } from "../../utils/dataConversion.js";
 
-export const getUsersService = async (q, query) => {
+export const getUsersService = async (q, query, pagination) => {
   try {
     let whereClause = {};
     if (q) {
@@ -37,6 +37,8 @@ export const getUsersService = async (q, query) => {
           },
         },
       },
+      take: pagination.limit || undefined, // Tomar un número limitado de registros
+      skip: pagination.offset || undefined,
     });
 
     return result;
@@ -68,7 +70,6 @@ export const getUserWithRoleService = async (role, q, query) => {
       }
     }
 
-    
     const result = await prisma.users.findMany({
       where: {
         roles: {
@@ -85,7 +86,6 @@ export const getUserWithRoleService = async (role, q, query) => {
         loyalties: true,
       },
     });
-    
 
     return result;
   } catch (error) {
