@@ -29,10 +29,16 @@ import { createDates } from "./seed.js";
 const app = express();
 
 // Permite comunicar servidores de manera simple, en este caso con el front-end
+// app.use(
+//   cors({
+//     origin: ["https://fourpark.vercel.app", "http://localhost:5173"],
+//     // Dar permiso de establecer las cookies
+//     credentials: true,
+//   })
+// );
 app.use(
   cors({
-    origin: ["https://fourpark.vercel.app", "http://localhost:5173"],
-    // Dar permiso de establecer las cookies
+    origin: "*",
     credentials: true,
   })
 );
