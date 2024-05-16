@@ -7,7 +7,7 @@ let BASE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 export const getDirecctionByGeo = async (lat, lon) => {
   try {
     const url = `${BASE_URL}?latlng=${lat},${lon}&key=${API_KEY}`;
-
+    console.log(url)
     const response = await fetch(url);
     const data = await response.json();
 
@@ -19,6 +19,7 @@ export const getDirecctionByGeo = async (lat, lon) => {
       const address = data.results[0].formatted_address;
       return { city: cityName, address: address };
     } else {
+      console.log(data.status, data)
       throw new Error("No se pudo encontrar la dirección.");
     }
   } catch (error) {
@@ -56,8 +57,8 @@ export const getGeoByText = async (address) => {
 const router = Router();
 
 router.get("/address", async (req, res) => {
-  const { lat } = req.body;
-  const { lon } = req.body;
+  const { lat } = req.query;
+  const { lon } = req.query;
   try {
     const address = await getDirecctionByGeo(lat, lon);
     res.json(address);
