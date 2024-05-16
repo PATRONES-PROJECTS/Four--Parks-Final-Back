@@ -90,8 +90,13 @@ export const getRecordsByUserService = async (id) => {
 
     if (!result) throw new Error("No se encontró el registro");
 
-    console.log(result.date);
-    result.date = new Date(result.date).toISOString().split("T")[0];
+
+
+    result.forEach((record) => {
+      const options = { day: "2-digit", month: "2-digit", year: "numeric" };
+      const dateAsString = record.date.toLocaleDateString("es-CO", options);
+      record.date = dateAsString;
+    });
 
     // Acordarse que las funciones flecha no es necesario el return al final
     return result;
