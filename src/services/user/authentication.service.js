@@ -110,9 +110,9 @@ export const verifyPassword = async (password, user) => {
 
     console.log(user.user_controllers.login_attempts);
 
-    if (user.roles.name === "Cliente") {
-      await checkUserStates(user);
-    }
+    // if (user.roles.name === "Cliente") {
+    await checkUserStates(user);
+    // }
 
     await updateUserControllerService(
       user.id_user,
