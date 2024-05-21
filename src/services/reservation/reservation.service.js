@@ -493,6 +493,8 @@ export const cancelReservationService = async (id) => {
       } else {
         await stripe.paymentIntents.cancel(reservation.invoices.payment_token);
       }
+    } else if (paymentMethod.name === "Tarjeta Personal") {
+      await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
     } else if (
       paymentMethod.name === "Otro Método de Pago" &&
       refundAmount !== 0
