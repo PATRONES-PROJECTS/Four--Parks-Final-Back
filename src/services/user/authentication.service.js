@@ -105,7 +105,7 @@ export const verifyPassword = async (password, user) => {
         }
       }
       // Falta aumentar el número de intentos y creo que bloquear
-      throw new Error("Contraseña incorrecta");
+      throw new Error("Verifique que los campos sean correctos");
     }
 
     console.log(user.user_controllers.login_attempts);
