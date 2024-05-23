@@ -619,14 +619,14 @@ export const checkOutReservationService = async (id) => {
 
     const extraAmount = controller.fee * differenceMinutes;
 
+    const paymentMethod = await getPaymentMethodByIdService(
+      reservation.invoices.id_payment_method_fk
+    );
+
     if (
       currentDate >= reservation.entry_reservation_date &&
       currentDate <= reservation.departure_reservation_date
     ) {
-      const paymentMethod = await getPaymentMethodByIdService(
-        reservation.invoices.id_payment_method_fk
-      );
-
       if (paymentMethod.name === "Tarjeta Personal") {
         await stripe.paymentIntents.confirm(reservation.invoices.payment_token);
       }
@@ -660,10 +660,6 @@ export const checkOutReservationService = async (id) => {
       return reservation.invoices;
     } else if (currentDate > reservation.departure_reservation_date) {
       // Mirar minutos extra y hacer la lógica prevista
-
-      const paymentMethod = await getPaymentMethodByIdService(
-        reservation.invoices.id_payment_method_fk
-      );
 
       if (paymentMethod.name === "Tarjeta Personal") {
         const totalAmount = reservation.invoices.total_amount;
