@@ -109,27 +109,17 @@ export const updateUserByAdministrator = async (req, res, next) => {
 
     if (userInformation.roles.name == "Client") {
       await updateLoyaltyService(id, req.body.loyalty_points);
-
-      const user = {
-        first_name: req.body.first_name,
-        last_name: req.body.last_name,
-        identification_card: req.body.identification_card,
-        user_name: req.body.user_name,
-        is_active: req.body.is_active,
-      };
-      const result = await updateUserService(userInformation.id_user, user);
-      res.json(result);
-    } else {
-      const user = {
-        first_name: req.body.first_name,
-        last_name: req.body.last_name,
-        identification_card: req.body.identification_card,
-        user_name: req.body.user_name,
-        is_active: req.body.is_active,
-      };
-      const result = await updateUserService(userInformation.id_user, user);
-      res.json(result);
     }
+
+    const user = {
+      first_name: req.body.first_name,
+      last_name: req.body.last_name,
+      identification_card: req.body.identification_card,
+      user_name: req.body.user_name,
+      is_active: req.body.is_active,
+    };
+    const result = await updateUserService(userInformation.id_user, user);
+    res.json(result);
   } catch (error) {
     console.log(error.message);
     next(error);
