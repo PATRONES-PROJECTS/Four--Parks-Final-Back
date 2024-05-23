@@ -168,7 +168,7 @@ export const updateParking = async (req, res, next) => {
     }
 
     if (!result.is_active) {
-      await returnMoneyFromReservations(result.id_parking);
+      await returnMoneyFromReservations(result.id_parking,"id_parking_fk");
     }
 
     res.json(result);
@@ -230,7 +230,7 @@ export const updateParkingWithoutImage = async (req, res, next) => {
     }
 
     if (!result.is_active) {
-      await returnMoneyFromReservations(result.id_parking);
+      await returnMoneyFromReservations(result.id_parking, "id_parking_fk");
     }
 
     res.json(result);

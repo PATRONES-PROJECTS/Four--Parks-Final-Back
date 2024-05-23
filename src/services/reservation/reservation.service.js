@@ -801,12 +801,12 @@ export const countReservationStatisticsService = async (
   }
 };
 
-export const returnMoneyFromReservations = async (idParking) => {
+export const returnMoneyFromReservations = async (element, type_search) => {
   try {
     const activeReservations = await prisma.reservations.findMany({
       where: {
         state: "Activa",
-        id_parking_fk: idParking,
+        [type_search]: element,
       },
       include: {
         invoices: true,

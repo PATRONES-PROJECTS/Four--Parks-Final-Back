@@ -9,6 +9,7 @@ import {
   deactivateUserService,
   unlockUserService,
 } from "../../services/user/user.service.js";
+import { returnMoneyFromReservations } from "../../services/reservation/reservation.service.js";
 
 // ----------------------------------------------
 export const getUsers = async (req, res, next) => {
@@ -145,6 +146,10 @@ export const updatePassword = async (req, res, next) => {
 export const deactivateUser = async (req, res, next) => {
   try {
     const result = await deactivateUserService(req.user.id_user);
+
+    if (!result.is_active) {
+      await returnMoneyFromReservations(result.id_user,"id_user_fk");
+    }
 
     res.json(result);
   } catch (error) {
