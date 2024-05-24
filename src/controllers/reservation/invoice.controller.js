@@ -1,4 +1,5 @@
 import { getInvoiceService, getInvoicesService } from "../../services/reservation/invoice.service.js";
+import { generateInvoiceMail } from "../../services/user/mail.service.js";
 
 export const getInvoices = async (req, res, next) => {
   try {
@@ -36,3 +37,18 @@ export const getInvoiceById = async (req, res, next) => {
       next(error);
     }
   };
+
+  
+export const getInvoiceMail = async (req, res, next) => {
+  try {
+    // Extraer id de req.params
+    const { id } = req.params;
+
+    await generateInvoiceMail(parseInt(id));
+
+    res.status(200).send("Correo enviado correctamente");
+  } catch (error) {
+    console.log(error.message);
+    next(error);
+  }
+};
