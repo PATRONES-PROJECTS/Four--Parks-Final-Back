@@ -100,6 +100,7 @@ export const getReservationsService = async (
           select: {
             name: true,
             has_loyalty_service: true,
+            image_path: true,
           },
         },
         vehicles: {
@@ -137,6 +138,7 @@ export const getReservationService = async (element, type_search) => {
           select: {
             name: true,
             has_loyalty_service: true,
+            image_path: true,
           },
         },
         vehicles: {
