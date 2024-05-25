@@ -94,6 +94,13 @@ export const getReservationsService = async (
         users: {
           select: {
             user_name: true,
+            roles: {
+              // Incluir los campos del rol
+              select: {
+                id_role: true,
+                name: true,
+              },
+            },
           },
         },
         parkings: {
@@ -132,6 +139,13 @@ export const getReservationService = async (element, type_search) => {
           select: {
             id_user: true,
             user_name: true,
+            roles: {
+              // Incluir los campos del rol
+              select: {
+                id_role: true,
+                name: true,
+              },
+            },
           },
         },
         parkings: {
