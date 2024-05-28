@@ -162,6 +162,7 @@ export const login = async (req, res, next) => {
       {
         id_user: result.id_user,
         role: result.roles.name,
+        user_name: result.user_name
       },
       "1d"
     );
