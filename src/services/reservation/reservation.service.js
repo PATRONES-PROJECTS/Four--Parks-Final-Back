@@ -571,6 +571,10 @@ export const checkInReservationService = async (id) => {
       throw new Error("La reserva no esta activa");
     }
 
+    if (reservation.check_in !== null) {
+      throw new Error("Ya se ha realizado un check in");
+    }
+
     const currentDate = new Date();
     currentDate.setHours(currentDate.getHours() - 5);
     reservation.entry_reservation_date = new Date(
