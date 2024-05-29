@@ -38,3 +38,20 @@ export const updateLoyaltyService = async (id, loyalty) => {
     throw error;
   }
 };
+
+
+export const updateLoyaltyServiceByUser = async (id, loyalty) => {
+  try {
+    const result = await prisma.loyalties.update({
+      where: { id_user_fk: parseInt(id) },
+      data: { loyalty_points: loyalty },
+    });
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+

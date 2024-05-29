@@ -10,6 +10,7 @@ import {
   unlockUserService,
 } from "../../services/user/user.service.js";
 import { returnMoneyFromReservations } from "../../services/reservation/reservation.service.js";
+import { updateLoyaltyServiceByUser } from "../../services/user/loyalty.service.js";
 
 // ----------------------------------------------
 export const getUsers = async (req, res, next) => {
@@ -108,8 +109,9 @@ export const updateUserByAdministrator = async (req, res, next) => {
 
     const userInformation = await getUserByIdService(id);
 
-    if (userInformation.roles.name == "Client") {
-      await updateLoyaltyService(id, req.body.loyalty_points);
+    console.log(userInformation.roles.name)
+    if (userInformation.roles.name == "Cliente") {
+      await updateLoyaltyServiceByUser(id, req.body.loyalty_points);
     }
 
     const user = {
