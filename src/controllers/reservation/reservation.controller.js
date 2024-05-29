@@ -117,7 +117,7 @@ export const success = async (req, res, next) => {
     console.log("Datos del id:", paymentToken);
 
     // res.redirect('/pago-completado');
-    res.redirect(302, 'https://fourpark.vercel.app/payment-confirmation');
+    res.redirect(302, 'https://fourpark.vercel.app/procesoc');
   } catch (error) {
     console.log(error.message);
     // Pasar el error al siguiente middleware para el manejo de errores
@@ -129,7 +129,7 @@ export const cancel = async (req, res, next) => {
   try {
     console.log("El pago ha sido cancelado");
 
-    res.redirect(302, 'https://fourpark.vercel.app/payment-confirmation');
+    res.redirect(302, 'https://fourpark.vercel.app/procesor');
   } catch (error) {
     console.log(error.message);
     next(error);
