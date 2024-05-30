@@ -233,8 +233,8 @@ export const requestToken = async (req, res, next) => {
       },
       "20m"
     );
-    const url = `${req.body.url}/${token}`;
-
+    const url = `${req.body.url}${token}`;
+    console.log(url)
     try {
       await sendMail(result.mail, result.user_name, url, req.body.type);
     } catch (error) {
