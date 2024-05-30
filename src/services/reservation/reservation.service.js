@@ -584,10 +584,10 @@ export const checkInReservationService = async (id) => {
       reservation.departure_reservation_date
     );
 
-    if (
-      currentDate >= reservation.entry_reservation_date &&
-      currentDate <= reservation.departure_reservation_date
-    ) {
+    // if (
+    //   currentDate >= reservation.entry_reservation_date &&
+    //   currentDate <= reservation.departure_reservation_date
+    // ) {
       const dateReservation = {
         check_in: currentDate,
       };
@@ -597,9 +597,9 @@ export const checkInReservationService = async (id) => {
       );
 
       return updatedReservation;
-    } else {
-      throw new Error("No esta dentro del rango de la reserva");
-    }
+    // } else {
+    //   throw new Error("No esta dentro del rango de la reserva");
+    // }
   } catch (error) {
     throw error;
   }
