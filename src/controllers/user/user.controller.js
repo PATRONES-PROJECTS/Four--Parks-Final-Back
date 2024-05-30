@@ -11,6 +11,7 @@ import {
 } from "../../services/user/user.service.js";
 import { returnMoneyFromReservations } from "../../services/reservation/reservation.service.js";
 import { updateLoyaltyServiceByUser } from "../../services/user/loyalty.service.js";
+import { createRecordService } from "../../services/user/record.service.js";
 
 // ----------------------------------------------
 export const getUsers = async (req, res, next) => {
@@ -94,6 +95,16 @@ export const updateUser = async (req, res, next) => {
       user_name: req.body.user_name,
     };
     const result = await updateUserService(req.user.id_user, user);
+
+    const record = {
+      action: "Actualización de usuario",
+      ip_user: req.headers["x-forwarded-for"]
+        ? req.headers["x-forwarded-for"].split(",")[0].trim()
+        : req.socket.remoteAddress,
+      id_user_fk: result.id_user,
+    };
+    await createRecordService(record);
+
     res.json(result);
   } catch (error) {
     console.log(error.message);
