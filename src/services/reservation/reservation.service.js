@@ -187,8 +187,8 @@ export const createReservationService = async (reservation, idUser) => {
     reservation.reservation_date = new Date(reservation.reservation_date);
     reservation.reservation_date.setHours(reservation.entry_reservation_date);
 
-    // if (currentDate > reservation.reservation_date)
-    //   throw new Error("La fecha indicada es menor a la actual");
+    if (currentDate > reservation.reservation_date)
+      throw new Error("La fecha indicada es menor a la actual");
 
     const parking = await getParkingService(
       reservation.id_parking_fk,
