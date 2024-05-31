@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-router.get("/schedules", [authenticateToken], getSchedules);
-router.get("/schedules/:id", [authenticateToken], getScheduleById);
+router.get("/schedules", getSchedules);
+router.get("/schedules/:id", getScheduleById);
 
 export default router;
