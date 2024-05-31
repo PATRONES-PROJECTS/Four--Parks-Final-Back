@@ -134,6 +134,7 @@ export const getUserByParameterService = async (id, type_search) => {
         roles: {
           select: { name: true },
         },
+        loyalties: true,
       },
     });
 

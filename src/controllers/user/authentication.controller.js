@@ -145,7 +145,6 @@ export const login = async (req, res, next) => {
       "user_name"
     );
 
-    
     await verifyPassword(req.body.password, result);
 
     const record = {
@@ -158,14 +157,27 @@ export const login = async (req, res, next) => {
     await createRecordService(record);
 
     // Llamar Token para crearlo
-    const token = await createAccessToken(
-      {
-        id_user: result.id_user,
-        role: result.roles.name,
-        user_name: result.user_name
-      },
-      "1d"
-    );
+    let token = "";
+    if (result.roles.name === "Cliente") {
+      token = await createAccessToken(
+        {
+          id_user: result.id_user,
+          role: result.roles.name,
+          loyalty: result.loyalties.loyalty_points,
+          user_name: result.user_name,
+        },
+        "1d"
+      );
+    } else {
+      token = await createAccessToken(
+        {
+          id_user: result.id_user,
+          role: result.roles.name,
+          user_name: result.user_name,
+        },
+        "1d"
+      );
+    }
     // // Creación de Cookie con el Token
     // res.cookie("token", token);
 
@@ -234,7 +246,7 @@ export const requestToken = async (req, res, next) => {
       "20m"
     );
     const url = `${req.body.url}${token}`;
-    console.log(url)
+    console.log(url);
     try {
       await sendMail(result.mail, result.user_name, url, req.body.type);
     } catch (error) {
